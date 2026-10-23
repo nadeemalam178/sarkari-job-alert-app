@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.env
+.venv/
+env/
+venv/
+*.sqlite3
+*.db
+*.log
+
+# Node & Android Build
+node_modules/
+android/app/build/
+android/.gradle/
+*.apk
+
+# OS
+.DS_Store
+Thumbs.db

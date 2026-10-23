@@ -1,0 +1,12 @@
+{
+  "appId": "com.sarkarijobalert.app",
+  "appName": "Sarkari Job Alert",
+  "webDir": "static",
+  "bundledWebRuntime": false,
+  "server": {
+    "cleartext": true
+  },
+  "android": {
+    "backgroundColor": "#0f172a"
+  }
+}

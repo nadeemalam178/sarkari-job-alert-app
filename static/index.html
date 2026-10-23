@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  
+  <!-- Primary SEO Meta Tags for Google Search Console -->
+  <title>Sarkari Result Job Alert - Qualification-Wise Govt Jobs Notification</title>
+  <meta name="title" content="Sarkari Result Job Alert - Qualification-Wise Govt Jobs Notification">
+  <meta name="description" content="Never miss a government job! Get real-time Sarkari Result notifications filtered automatically by your qualification - B.Ed, CTET, STET, Graduate, 10th, 12th, MCA, BCA, B.Tech.">
+  <meta name="keywords" content="sarkari result, sarkari job alert, qualification wise job, b.ed jobs, ctet vacancy, 10th pass job, graduate govt jobs, stet alert, sarkari result notification">
+  <meta name="author" content="Sarkari Job Alert">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://sarkarijobalert.app/">
+
+  <!-- Open Graph / Facebook / WhatsApp -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://sarkarijobalert.app/">
+  <meta property="og:title" content="Sarkari Result Job Alert - Qualification-Wise Govt Jobs">
+  <meta property="og:description" content="Instant push notifications for government jobs matching your qualification: B.Ed, CTET, Graduate, 12th Pass, MCA, BCA and more.">
+  <meta property="og:image" content="/icons/icon-512.png">
+
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image">
+  <meta property="twitter:url" content="https://sarkarijobalert.app/">
+  <meta property="twitter:title" content="Sarkari Result Job Alert - Qualification-Wise Govt Jobs">
+  <meta property="twitter:description" content="Instant push notifications for government jobs matching your qualification: B.Ed, CTET, Graduate, 12th Pass, MCA, BCA and more.">
+  <meta property="twitter:image" content="/icons/icon-512.png">
+
+  <!-- PWA & Mobile Web App Meta -->
+  <meta name="theme-color" content="#2563eb">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="SarkariAlert">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" type="image/png" href="/icons/icon-192.png">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+
+  <!-- Google Structured Data (Schema.org JSON-LD) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "Sarkari Result Job Alert",
+    "url": "https://sarkarijobalert.app/",
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": "https://sarkarijobalert.app/?q={search_term_string}",
+      "query-input": "required name=search_term_string"
+    },
+    "description": "Automated Sarkari Result job notifier filtered by educational qualification (B.Ed, CTET, Graduate, 10th, 12th)."
+  }
+  </script>
+
+  <link rel="stylesheet" href="/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- Top Navigation Header -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+          </svg>
+        </div>
+        <div>
+          <h1 class="brand-title">Sarkari Job Alert</h1>
+          <p class="brand-subtitle">Qualification-Matched Live Tracker</p>
+        </div>
+      </div>
+      
+      <div class="header-actions">
+        <button id="btn-check-now" class="btn btn-primary" title="Trigger an immediate check">
+          <svg class="spin-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+          </svg>
+          <span class="btn-text">Check Now</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="main-content">
+
+    <!-- Stats Overview Cards -->
+    <section class="stats-grid">
+      <div class="stat-card stat-matched">
+        <div class="stat-icon-wrapper match-bg">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+          </svg>
+        </div>
+        <div class="stat-info">
+          <span class="stat-label">Jobs Matched for You</span>
+          <h3 id="stat-matched-count" class="stat-value">0</h3>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon-wrapper total-bg">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+          </svg>
+        </div>
+        <div class="stat-info">
+          <span class="stat-label">Total Jobs Scanned</span>
+          <h3 id="stat-total-count" class="stat-value">0</h3>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon-wrapper time-bg">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+        </div>
+        <div class="stat-info">
+          <span class="stat-label">Last Auto-Checked</span>
+          <h4 id="stat-last-time" class="stat-value-sm">Never</h4>
+        </div>
+      </div>
+    </section>
+
+    <!-- Navigation Tabs -->
+    <nav class="tabs-nav">
+      <button class="tab-btn active" data-tab="tab-matched">
+        <span class="tab-icon">🎯</span> Matched Jobs
+        <span id="badge-matched" class="tab-badge">0</span>
+      </button>
+      <button class="tab-btn" data-tab="tab-all">
+        <span class="tab-icon">📋</span> All Sarkari Jobs
+      </button>
+      <button class="tab-btn" data-tab="tab-qualifications">
+        <span class="tab-icon">🎓</span> My Qualifications
+      </button>
+      <button class="tab-btn" data-tab="tab-alerts">
+        <span class="tab-icon">🔔</span> Notification Settings
+      </button>
+    </nav>
+
+    <!-- Tab 1: Matched Jobs -->
+    <div id="tab-matched" class="tab-panel active">
+      <div class="panel-header">
+        <div>
+          <h2 class="panel-title">Jobs Matching Your Qualifications</h2>
+          <p class="panel-desc">Only posts requiring qualifications selected in your profile appear here.</p>
+        </div>
+        <div class="search-box">
+          <input type="text" id="matched-search-input" placeholder="Search by title, board, degree..." />
+        </div>
+      </div>
+
+      <div id="matched-jobs-list" class="jobs-list">
+        <!-- Rendered via JS -->
+        <div class="loading-state">
+          <div class="spinner"></div>
+          <p>Scanning job listings...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 2: All Latest Jobs -->
+    <div id="tab-all" class="tab-panel">
+      <div class="panel-header">
+        <div>
+          <h2 class="panel-title">All Latest Sarkari Result Jobs</h2>
+          <p class="panel-desc">Full feed of government vacancies currently tracked.</p>
+        </div>
+        <div class="search-box">
+          <input type="text" id="all-search-input" placeholder="Search all jobs..." />
+        </div>
+      </div>
+
+      <div id="all-jobs-list" class="jobs-list">
+        <!-- Rendered via JS -->
+      </div>
+    </div>
+
+    <!-- Tab 3: Qualifications Manager -->
+    <div id="tab-qualifications" class="tab-panel">
+      <div class="panel-card">
+        <div class="card-head">
+          <h2 class="panel-title">Choose Your Qualifications</h2>
+          <p class="panel-desc">Tick all qualifications you hold. When a job matching any of these appears on Sarkari Result, you will receive an instant notification!</p>
+        </div>
+
+        <div class="qual-categories">
+          <!-- Teaching Category -->
+          <div class="qual-group">
+            <h4 class="group-title">👨‍🏫 Teaching & Education</h4>
+            <div class="checkbox-grid">
+              <label class="check-item"><input type="checkbox" name="qual" value="B.ED"> <span>B.Ed</span></label>
+              <label class="check-item"><input type="checkbox" name="qual" value="D.EL.ED / BTC"> <span>D.El.Ed / BTC</span></label>
+              <label class="check-item"><input type="checkbox" name="qual" value="CTET"> <span>CTET (Paper 1 / 2)</span></label>
+              <label class="check-item"><input type="checkbox" name="qual" value="STET"> <span>STET / State TET</span></label>
+              <label class="check-item"><input type="checkbox" name="qual" value="TEACHER"> <span>Teacher (PRT / TGT / PGT)</span></label>
+            </div>
+          </div>
+
+          <!-- Graduation & Professional -->
+          <div class="qual-group">
+            <h4 class="group-title">🎓 Graduation & Professional Degrees</h4>
+            <div class="checkbox-grid">
+              <label class="check-item"><input type="checkbox" name="qual" value="GRADUATE"> <span>Graduate (Any Degree / BA / BSc / BCom)</span></label>
+              <label class="check-item"><input type="checkbox" name="qual" value="B.TECH / B.E"> <span>B.Tech / B.E (Engineering)</span></label>
+              <label class="check-item"><input type="checkbox" name="qual" value="BCA"> <span>BCA (Computer Applications)</span></label>
+              <label class="check-item"><input type="checkbox" name="qual" value="MCA"> <span>MCA (Master in Computer)</span></label>
+              <label class="check-item"><input type="checkbox" name="qual" value="POST GRADUATE"> <span>Post Graduate (MA / MSc / MCom / MBA)</span></label>
+            </div>
+          </div>
+
+          <!-- School, ITI & Diploma -->
+          <div class="qual-group">
+            <h4 class="group-title">📜 School, Diploma & Technical</h4>
+            <div class="checkbox-grid">
+              <label class="check-item"><input type="checkbox" name="qual" value="10TH"> <span>10th / Matriculation</span></label>
+              <label class="check-item"><input type="checkbox" name="qual" value="12TH / 10+2"> <span>12th / 10+2 / Intermediate</span></label>
+              <label class="check-item"><input type="checkbox" name="qual" value="ITI"> <span>ITI Certificate (Any Trade)</span></label>
+              <label class="check-item"><input type="checkbox" name="qual" value="DIPLOMA"> <span>Polytechnic Diploma</span></label>
+            </div>
+          </div>
+
+          <!-- Medical & Defence -->
+          <div class="qual-group">
+            <h4 class="group-title">🛡️ Police, Defence, Medical & Others</h4>
+            <div class="checkbox-grid">
+              <label class="check-item"><input type="checkbox" name="qual" value="POLICE / DEFENCE"> <span>Police / Constable / SI / Defence</span></label>
+              <label class="check-item"><input type="checkbox" name="qual" value="NURSING / MEDICAL"> <span>Nursing (ANM / GNM / MBBS)</span></label>
+              <label class="check-item"><input type="checkbox" name="qual" value="COMPUTER"> <span>Computer Operator / DEO</span></label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Custom Keywords Input -->
+        <div class="custom-keywords-section">
+          <h4 class="group-title">🏷️ Custom Keywords</h4>
+          <p class="panel-desc">Add any custom words to match (e.g. <code>Bihar</code>, <code>Railway</code>, <code>Civil</code>, <code>Electrical</code>, <code>Typing</code>):</p>
+          <div class="keyword-input-wrapper">
+            <input type="text" id="new-keyword-input" placeholder="Type keyword and press Enter..." />
+            <button id="btn-add-keyword" class="btn btn-secondary">Add</button>
+          </div>
+          <div id="keywords-tags-container" class="tags-container"></div>
+        </div>
+
+        <div class="card-footer">
+          <button id="btn-save-qualifications" class="btn btn-primary">Save & Re-Filter Jobs</button>
+          <span id="save-qual-status" class="status-msg"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 4: Notification Settings -->
+    <div id="tab-alerts" class="tab-panel">
+      <div class="panel-card">
+        <div class="card-head">
+          <h2 class="panel-title">Push Notification Channels</h2>
+          <p class="panel-desc">Receive instant alerts on your mobile phone or laptop lockscreen when a matching job arrives.</p>
+        </div>
+
+        <!-- Channel 1: Mobile Lockscreen Push via ntfy.sh (Zero Login) -->
+        <div class="setting-box highlight-box">
+          <div class="setting-header">
+            <div class="channel-badge free-badge">Recommended • 100% Free</div>
+            <h3>📱 Instant Phone Lockscreen Push (via ntfy.sh)</h3>
+            <p>Get instant notifications on your Android or iPhone lockscreen without needing Google Play Store or account logins!</p>
+          </div>
+
+          <div class="form-group">
+            <label for="ntfy-topic-input">Your Secret Alert Topic Name:</label>
+            <div class="input-with-action">
+              <input type="text" id="ntfy-topic-input" value="sarkari_job_alert_user" />
+              <button id="btn-test-notification" class="btn btn-secondary">Test Notification</button>
+            </div>
+            <small class="field-help">
+              To receive alerts on your phone:
+              <br>1. Install the free <strong>ntfy</strong> app from Google Play / F-Droid / App Store (or open <a id="ntfy-link" href="https://ntfy.sh/sarkari_job_alert_user" target="_blank">ntfy.sh/sarkari_job_alert_user</a> in mobile browser).
+              <br>2. Click <strong>Subscribe to Topic</strong> and enter your topic name. Done!
+            </small>
+          </div>
+        </div>
+
+        <!-- Channel 2: In-Browser Web Push & Sound -->
+        <div class="setting-box">
+          <div class="setting-header">
+            <h3>💻 Browser Push & Sound Chime</h3>
+            <p>Desktop and mobile browser popup notifications when website or PWA is open.</p>
+          </div>
+
+          <div class="toggle-list">
+            <label class="toggle-item">
+              <input type="checkbox" id="toggle-browser-push" checked>
+              <span class="toggle-slider"></span>
+              <span class="toggle-text">Enable Browser Web Push Notification</span>
+            </label>
+            <button id="btn-request-perm" class="btn btn-sm btn-outline">Enable Permission</button>
+
+            <label class="toggle-item">
+              <input type="checkbox" id="toggle-sound" checked>
+              <span class="toggle-slider"></span>
+              <span class="toggle-text">Play Audio Chime Sound on New Match</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Channel 3: Auto-Check Interval -->
+        <div class="setting-box">
+          <div class="setting-header">
+            <h3>⏱️ Auto-Check Interval</h3>
+            <p>How frequently the background system checks Sarkari Result for new posts.</p>
+          </div>
+
+          <div class="form-group inline-group">
+            <label for="select-interval">Run check every:</label>
+            <select id="select-interval" class="custom-select">
+              <option value="15">Every 15 Minutes</option>
+              <option value="30">Every 30 Minutes</option>
+              <option value="60" selected>Every 1 Hour (Recommended)</option>
+              <option value="120">Every 2 Hours</option>
+              <option value="240">Every 4 Hours</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Channel 4: Optional Telegram Bot -->
+        <div class="setting-box">
+          <div class="setting-header">
+            <h3>✈️ Telegram Bot Alert (Optional)</h3>
+            <p>Receive alerts directly in your personal Telegram chat or channel.</p>
+          </div>
+
+          <div class="form-group">
+            <label for="tg-token-input">Telegram Bot Token:</label>
+            <input type="password" id="tg-token-input" placeholder="123456789:ABCdefGhIJKlmNoPQRstuvw" />
+          </div>
+
+          <div class="form-group">
+            <label for="tg-chat-input">Telegram Chat ID:</label>
+            <input type="text" id="tg-chat-input" placeholder="e.g. 987654321 or @my_channel" />
+          </div>
+        </div>
+
+        <div class="card-footer">
+          <button id="btn-save-settings" class="btn btn-primary">Save Notification Settings</button>
+          <span id="save-settings-status" class="status-msg"></span>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <footer class="app-footer">
+    <div class="footer-container">
+      <p>Sarkari Result Qualification Job Alert System • 100% Free & Open Source</p>
+      <p class="disclaimer">Data aggregated from public notifications on Sarkari Result. Always verify with official commission advertisements before applying.</p>
+    </div>
+  </footer>
+
+  <script src="/app.js"></script>
+</body>
+</html>

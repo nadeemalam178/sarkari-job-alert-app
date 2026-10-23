@@ -1,0 +1,24 @@
+{
+  "selected_qualifications": [
+    "B.ED",
+    "CTET",
+    "STET",
+    "GRADUATE",
+    "MCA",
+    "BCA",
+    "10+2"
+  ],
+  "custom_keywords": [
+    "TEACHER",
+    "COMPUTER"
+  ],
+  "check_interval_minutes": 60,
+  "enable_browser_push": true,
+  "enable_sound": true,
+  "ntfy_topic": "sarkari_job_alert_user",
+  "telegram_bot_token": "",
+  "telegram_chat_id": "",
+  "last_checked_at": "23 Oct 2026, 08:21 PM",
+  "total_checked": 0,
+  "total_matched": 0
+}
