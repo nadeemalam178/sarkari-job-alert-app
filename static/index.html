@@ -29,20 +29,36 @@
   <!-- Top App Navigation -->
   <header class="app-header">
     <div class="header-container">
-      <div class="brand">
-        <div class="brand-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
-            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+      <div class="header-left">
+        <!-- Hamburger Menu Button for Side Panel Drawer -->
+        <button id="btn-toggle-drawer" class="btn-icon-drawer" aria-label="Open Side Panel">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
           </svg>
-        </div>
-        <div>
-          <h1 class="brand-title">Sarkari Job Alert</h1>
-          <p class="brand-subtitle">Smart Qualification Matcher • Sarkari Result Preferred</p>
+        </button>
+
+        <div class="brand">
+          <div class="brand-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+              <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+            </svg>
+          </div>
+          <div>
+            <h1 class="brand-title">Sarkari Job Alert</h1>
+            <p class="brand-subtitle">Smart Qualification Matcher • Sarkari Result Preferred</p>
+          </div>
         </div>
       </div>
       
       <div class="header-actions">
+        <!-- Phone Debug Button -->
+        <button id="btn-phone-connect" class="btn btn-outline btn-sm desktop-only" title="Connect Phone on Wi-Fi">
+          <span>📱 Phone Link</span>
+        </button>
+
         <!-- Logged-in User Profile Pill -->
         <div id="user-header-profile" class="user-pill-container" style="display:none;">
           <div class="user-avatar" id="header-user-avatar">U</div>
@@ -50,8 +66,8 @@
             <span class="user-name" id="header-user-name">Candidate</span>
             <span class="user-state" id="header-user-level">Graduate</span>
           </div>
-          <button id="btn-edit-edu-header" class="btn btn-xs btn-outline" title="Change Qualifications">Edit Edu</button>
-          <button id="btn-logout" class="btn btn-xs btn-outline" title="Log out">Logout</button>
+          <button id="btn-edit-edu-header" class="btn btn-xs btn-outline desktop-only" title="Change Qualifications">Edit Edu</button>
+          <button id="btn-logout" class="btn btn-xs btn-outline desktop-only" title="Log out">Logout</button>
         </div>
 
         <button id="btn-open-login" class="btn btn-primary btn-sm">
@@ -62,11 +78,124 @@
           <svg class="spin-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
           </svg>
-          <span class="btn-text">Refresh</span>
+          <span class="btn-text desktop-only">Refresh</span>
         </button>
       </div>
     </div>
   </header>
+
+  <!-- ======================================================== -->
+  <!-- SLIDE-OUT SIDE PANEL (DRAWER NAVIGATION)                 -->
+  <!-- ======================================================== -->
+  <div id="drawer-backdrop" class="drawer-backdrop"></div>
+  <aside id="side-panel-drawer" class="side-panel-drawer">
+    <div class="drawer-header">
+      <div class="drawer-user-card" id="drawer-user-info">
+        <div class="drawer-avatar" id="drawer-avatar">U</div>
+        <div class="drawer-user-meta">
+          <h3 class="drawer-user-name" id="drawer-user-name">Guest Candidate</h3>
+          <span class="drawer-badge" id="drawer-user-level">Select Qualifications</span>
+          <span class="drawer-state" id="drawer-user-state">All India</span>
+        </div>
+      </div>
+      <button id="btn-close-drawer" class="drawer-close-btn">&times;</button>
+    </div>
+
+    <div class="drawer-body">
+      <!-- Section: Navigation -->
+      <div class="drawer-section">
+        <span class="drawer-section-title">Navigation</span>
+        <ul class="drawer-nav-list">
+          <li class="drawer-nav-item active" data-tab="tab-matched">
+            <span class="nav-icon">🎯</span>
+            <span class="nav-text">Jobs Matching Degrees</span>
+            <span class="drawer-counter-badge" id="drawer-badge-matched">0</span>
+          </li>
+          <li class="drawer-nav-item" data-tab="tab-all">
+            <span class="nav-icon">🌐</span>
+            <span class="nav-text">All Govt Vacancies</span>
+          </li>
+          <li class="drawer-nav-item" data-tab="tab-education">
+            <span class="nav-icon">🎓</span>
+            <span class="nav-text">My Education & Degrees</span>
+          </li>
+          <li class="drawer-nav-item" data-tab="tab-alerts">
+            <span class="nav-icon">🔔</span>
+            <span class="nav-text">Phone Notifications</span>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Section: Portal Filter -->
+      <div class="drawer-section">
+        <span class="drawer-section-title">Filter by Source Portal</span>
+        <div class="drawer-portals-grid">
+          <button class="drawer-portal-chip active" data-source="all">All Portals</button>
+          <button class="drawer-portal-chip" data-source="SarkariResult">SarkariResult ★</button>
+          <button class="drawer-portal-chip" data-source="FreeJobAlert">FreeJobAlert</button>
+          <button class="drawer-portal-chip" data-source="RojgarResult">RojgarResult</button>
+        </div>
+      </div>
+
+      <!-- Section: Mobile Debug Helper -->
+      <div class="drawer-section">
+        <span class="drawer-section-title">📱 Phone Debug / Wi-Fi Link</span>
+        <div class="drawer-wifi-box">
+          <p class="wifi-hint">Open this on your mobile phone on same Wi-Fi:</p>
+          <code id="drawer-wifi-ip">http://192.168.1.11:5000</code>
+          <button id="btn-drawer-copy-ip" class="btn btn-xs btn-secondary" style="margin-top:6px;">Copy URL</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="drawer-footer">
+      <button id="drawer-btn-login" class="btn btn-primary btn-block">Log In / Sign Up</button>
+      <button id="drawer-btn-logout" class="btn btn-outline btn-block" style="display:none; margin-top:8px;">Logout</button>
+    </div>
+  </aside>
+
+  <!-- ======================================================== -->
+  <!-- MOBILE BOTTOM DOCK BAR (MODERN FLOATING NAVIGATION)      -->
+  <!-- ======================================================== -->
+  <nav id="mobile-bottom-dock" class="mobile-bottom-dock">
+    <div class="dock-container">
+      <button class="dock-item active" data-tab="tab-matched">
+        <div class="dock-icon-wrapper">
+          <span class="dock-icon">🎯</span>
+          <span id="dock-badge-matched" class="dock-badge">0</span>
+        </div>
+        <span class="dock-label">For You</span>
+      </button>
+
+      <button class="dock-item" data-tab="tab-all">
+        <div class="dock-icon-wrapper">
+          <span class="dock-icon">🌐</span>
+        </div>
+        <span class="dock-label">All Jobs</span>
+      </button>
+
+      <button class="dock-item" data-tab="tab-education">
+        <div class="dock-icon-wrapper">
+          <span class="dock-icon">🎓</span>
+        </div>
+        <span class="dock-label">Education</span>
+      </button>
+
+      <button class="dock-item" data-tab="tab-alerts">
+        <div class="dock-icon-wrapper">
+          <span class="dock-icon">🔔</span>
+        </div>
+        <span class="dock-label">Alerts</span>
+      </button>
+
+      <button id="btn-dock-menu" class="dock-item">
+        <div class="dock-icon-wrapper">
+          <span class="dock-icon">☰</span>
+        </div>
+        <span class="dock-label">Menu</span>
+      </button>
+    </div>
+  </nav>
 
   <!-- Active Qualification Banner -->
   <div id="user-quals-banner" class="quals-banner" style="display:none;">

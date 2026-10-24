@@ -1,67 +1,42 @@
 # 🎯 Sarkari Result Qualification-Based Job Alert App
 
-An automated, 100% free, multi-platform system that continuously monitors **Sarkari Result**, parses post eligibility details, matches them against your educational qualifications (B.Ed, CTET, STET, Graduate, 10th, 12th, MCA, BCA, B.Tech, etc.), and immediately sends push alerts to your phone lockscreen and browser.
+An automated, multi-platform system that continuously monitors **Sarkari Result**, **FreeJobAlert**, and **RojgarResult**, filters out non-job noise (results, admit cards), matches posts against your specific qualifications (B.Ed, CTET, STET, Graduate, 10th, 12th, MCA, BCA, B.Tech, etc.), and immediately delivers alerts to your phone lockscreen and browser.
 
 ---
 
 ## 🌟 Key Features
 
-- **⚡ Incremental Caching & Token-Saver Engine**:
-  - Automatically caches seen jobs in SQLite and `data/jobs.json`.
-  - Never re-scrapes old posts, saving network requests and compute tokens.
-  - When you change qualifications in the UI, it re-matches in-memory in ~0.1 seconds with **zero** internet requests!
-- **📱 Instant Mobile Lockscreen Push (Zero-Login / Zero Play Store)**:
-  - Powered by `ntfy.sh` — 100% free, open-source push notification service.
-  - Receive vibration & sound alerts with direct click-to-apply links on your phone.
-- **🚀 100% Free Cloud Deployment Ready**:
-  - Deploy effortlessly to **Vercel** or **Netlify**.
-  - Background scraper automated 24/7 via **GitHub Actions** cron (runs every 2 hours free).
-- **🔍 Google Search Console & SEO Ready**:
-  - Includes `sitemap.xml`, `robots.txt`, OpenGraph tags, and Schema.org (`JobPosting` & `WebSite` JSON-LD) structured data.
-- **📱 Standalone Android APK**:
-  - Includes PWA manifest & Capacitor configuration to build a native `.apk` file for direct installation on Android phones.
+- **📱 Mobile App Layout (Bottom Dock & Slide-Out Side Panel)**:
+  - **Floating Dock Navigation**: Modern iOS/Android style bottom dock bar for quick thumb access to For You, All Jobs, Education, and Alerts.
+  - **Slide-Out Side Panel (Drawer)**: Clean slide-in menu with candidate profile, portal filter chips (SarkariResult ★, FreeJobAlert, RojgarResult), and Wi-Fi phone link.
+- **⚡ Live Phone Debugging with Expo (`expo-mobile/`)**:
+  - Run `start-expo.bat` and scan the QR code with **Expo Go** on your physical Android or iPhone.
+  - Instant live debugging and fast-reload directly on your phone!
+  - In-app server IP switcher to connect to your computer on any Wi-Fi.
+- **🎓 Smart Qualification Matcher (50+ Indian Govt Job Degrees)**:
+  - Highest qualification selector + live autosuggest search for specific degrees.
+  - Automatic downward eligibility (Graduates automatically match general 12th/10th openings).
+- **🚫 Strict Non-Job Exclusion**:
+  - Excludes admit cards, results, scorecards, allotments, scholarships, and syllabi.
+  - **100% active recruitment vacancies only**.
+- **🥇 Sarkari Result Priority & Cross-Portal Deduplication**:
+  - Normalized deduplication across portals, always prioritizing Sarkari Result links with `SarkariResult ★` badge.
+- **🔔 Phone Lock Screen Push via `ntfy.sh` (100% Free / Zero Play Store)**:
+  - Instant push notifications to phone lock screen with vibration and direct apply links.
 
 ---
 
 ## 🚀 Quick Start (Local PC)
 
-### 1. Launch with One Click
-Double-click `run.bat` (or open terminal and run):
-```bash
-pip install -r requirements.txt
-python app.py
-```
+### 1. Start Backend & Web App
+Double-click `run.bat` (or run `python app.py`).
 Open **`http://localhost:5000`** in your browser.
 
----
-
-## 📤 Step-by-Step: Deploy to GitHub & Vercel / Netlify
-
-### Step 1: Push to GitHub
-1. Open PowerShell in this project folder:
-   ```bash
-   git init
-   git add .
-   git commit -m "Initial commit of Sarkari Result Job Alert App"
-   git branch -M main
-   ```
-2. Create a new repository on [GitHub](https://github.com/new).
-3. Connect and push:
-   ```bash
-   git remote add origin https://github.com/<your-username>/<your-repo-name>.git
-   git push -u origin main
-   ```
-
-### Step 2: Deploy to Vercel (1-Click & 100% Free)
-1. Go to [vercel.com](https://vercel.com) and log in with your GitHub account.
-2. Click **Add New Project** -> Select your repository.
-3. Keep default settings (Vercel automatically detects `vercel.json`).
-4. Click **Deploy**. Your app is now live with a free `https://your-project.vercel.app` domain!
-
-### Step 3: Enable 24/7 GitHub Actions Scraper
-- In your GitHub repo, go to the **Actions** tab.
-- The `.github/workflows/scraper-cron.yml` is already configured to run every 2 hours automatically.
-- You can also click **Run workflow** to test it anytime manually.
+### 2. Debug Live on Your Phone via Expo Go
+1. Install the free **Expo Go** app from Google Play Store or App Store.
+2. Ensure phone & PC are on the same Wi-Fi.
+3. Double-click `start-expo.bat` in this folder.
+4. Scan the QR code in the terminal with Expo Go. The app runs live on your phone!
 
 ---
 
@@ -69,32 +44,24 @@ Open **`http://localhost:5000`** in your browser.
 
 1. Install the free **ntfy** app on your phone:
    - [ntfy on Google Play](https://play.google.com/store/apps/details?id=io.heckel.ntfy)
-   - Or open `https://ntfy.sh/sarkari_job_alert_user` directly in your phone browser.
-2. In the app, tap **+ (Subscribe to topic)** and enter your secret topic name (default: `sarkari_job_alert_user`).
-3. That's it! Whenever a matching job is posted, your phone will ring and show the notification on your lock screen with a direct link to apply.
+2. In the app, tap **+ (Subscribe to topic)** and enter your topic name (default: `sarkari_job_alert_user`).
+3. You will receive real-time push alerts whenever matching jobs are posted.
 
 ---
 
-## 🔍 How to Connect Google Search Console
+## 📦 How to Build the Standalone Android APK
 
-1. Open [Google Search Console](https://search.google.com/search-console).
-2. Click **Add Property** and enter your live URL (e.g., `https://your-app.vercel.app`).
-3. Verify ownership (via HTML tag or DNS).
-4. In the left menu, click **Sitemaps**, enter `sitemap.xml`, and click **Submit**.
-5. Google will now index your web app and qualification job feeds directly in Google Search results.
+### Option 1: Expo Cloud Build (EAS Build - Recommended)
+Inside `expo-mobile/`:
+```bash
+npm install -g eas-cli
+eas login
+eas build -p android --profile preview
+```
+Expo compiles the `.apk` in the cloud and gives you a direct download link!
 
----
-
-## 📦 How to Build the Android APK
-
-### Option A: 1-Minute Fast Online APK (Recommended)
-1. Open [PWABuilder.com](https://www.pwabuilder.com/).
-2. Enter your live Vercel/Netlify URL.
-3. Click **Package For Stores** -> Select **Android** -> Click **Download APK Package**.
-4. Transfer the `.apk` to your phone and install!
-
-### Option B: Local Build via Capacitor
-Run `build-apk.bat` in this folder and choose **Option 2**. It will generate the Android Studio project with `npx cap add android` and build the debug APK.
+### Option 2: 1-Click Fast Online APK (PWABuilder)
+Paste your live Vercel/Netlify URL into [PWABuilder.com](https://www.pwabuilder.com/) and download the APK package.
 
 ---
 
@@ -102,30 +69,23 @@ Run `build-apk.bat` in this folder and choose **Option 2**. It will generate the
 
 ```
 sarkari-job-alert-app/
-├── .github/workflows/
-│   └── scraper-cron.yml      # Free 24/7 automated scraping cron
-├── api/
-│   └── index.py              # Vercel serverless entry point
-├── data/
-│   ├── jobs.json             # Persistent jobs cache (token saver)
-│   ├── settings.json         # User qualification preferences
-│   └── default_settings.json # Defaults
-├── static/
-│   ├── index.html            # Responsive UI + SEO Schema.org tags
-│   ├── style.css             # Sleek modern layout
-│   ├── app.js                # Frontend reactive state & audio chime
+├── expo-mobile/              # React Native / Expo Mobile App for phone debugging
+│   ├── App.js                # Mobile app with WebView, IP switcher & native bridge
+│   ├── app.json              # Expo configuration (permissions, icons, theme)
+│   ├── package.json          # Expo SDK 52 dependencies
+│   └── start.bat             # 1-click Expo runner
+├── static/                   # Web PWA Frontend
+│   ├── index.html            # Mobile dock bar, slide-out drawer, SEO & schema
+│   ├── style.css             # Floating dock, slide-out side panel, glassmorphism
+│   ├── app.js                # Reactive state, audio chime & qualification autosuggest
 │   ├── sw.js                 # PWA Service worker
-│   ├── manifest.json         # PWA Android install manifest
-│   ├── sitemap.xml           # Google Search Console sitemap
-│   ├── robots.txt            # Search crawler directives
-│   └── icons/                # High-res PWA & APK icons
-├── scraper.py                # Regex qualification extractor
-├── notifier.py               # Dispatcher for ntfy.sh, browser, telegram
-├── database.py               # SQLite & JSON sync manager
+│   ├── manifest.json         # PWA Manifest
+│   └── sitemap.xml           # Google Search Console sitemap
+├── scraper.py                # Multi-portal scraper with Sarkari Result priority
+├── database.py               # SQLite & user authentication manager
+├── notifier.py               # Phone lockscreen notification dispatcher
 ├── app.py                    # Flask server
-├── build-apk.bat             # Android APK build script
-├── run.bat                   # 1-click Windows runner
-├── vercel.json               # Vercel configuration
-├── netlify.toml              # Netlify configuration
-└── requirements.txt          # Python dependencies
+├── start-expo.bat            # 1-click Expo phone runner
+├── run.bat                   # 1-click PC runner
+└── README.md
 ```

@@ -73,6 +73,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("btn-edit-edu-header").addEventListener("click", () => switchTab("tab-education"));
   document.getElementById("btn-edit-quals-banner").addEventListener("click", () => switchTab("tab-education"));
 
+  // Drawer & Mobile Dock Initialization
+  initDrawerAndDock();
+
   // Degree Search & Autosuggest
   initDegreeSearch();
 
@@ -81,7 +84,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("all-search-input").addEventListener("input", filterAllJobs);
 });
 
-// --- Tab Switching ---
+// --- Tab Switching with Bottom Dock Synchronization ---
 function initTabs() {
   const tabs = document.querySelectorAll(".tab-btn");
   tabs.forEach(tab => {
@@ -92,12 +95,118 @@ function initTabs() {
 }
 
 function switchTab(targetId) {
+  // Desktop tabs
   document.querySelectorAll(".tab-btn").forEach(t => {
     t.classList.toggle("active", t.getAttribute("data-tab") === targetId);
   });
+  // Tab panels
   document.querySelectorAll(".tab-panel").forEach(p => {
     p.classList.toggle("active", p.id === targetId);
   });
+  // Bottom Dock items
+  document.querySelectorAll(".dock-item[data-tab]").forEach(d => {
+    d.classList.toggle("active", d.getAttribute("data-tab") === targetId);
+  });
+  // Drawer items
+  document.querySelectorAll(".drawer-nav-item[data-tab]").forEach(item => {
+    item.classList.toggle("active", item.getAttribute("data-tab") === targetId);
+  });
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// --- Side Panel Drawer & Mobile Dock ---
+function initDrawerAndDock() {
+  const drawer = document.getElementById("side-panel-drawer");
+  const backdrop = document.getElementById("drawer-backdrop");
+  const btnToggle = document.getElementById("btn-toggle-drawer");
+  const btnClose = document.getElementById("btn-close-drawer");
+  const btnDockMenu = document.getElementById("btn-dock-menu");
+
+  const openDrawer = () => {
+    drawer.classList.add("open");
+    backdrop.classList.add("active");
+  };
+
+  const closeDrawer = () => {
+    drawer.classList.remove("open");
+    backdrop.classList.remove("active");
+  };
+
+  if (btnToggle) btnToggle.addEventListener("click", openDrawer);
+  if (btnDockMenu) btnDockMenu.addEventListener("click", openDrawer);
+  if (btnClose) btnClose.addEventListener("click", closeDrawer);
+  if (backdrop) backdrop.addEventListener("click", closeDrawer);
+
+  // Drawer Nav Items
+  document.querySelectorAll(".drawer-nav-item[data-tab]").forEach(item => {
+    item.addEventListener("click", () => {
+      const tabId = item.getAttribute("data-tab");
+      switchTab(tabId);
+      closeDrawer();
+    });
+  });
+
+  // Dock Items
+  document.querySelectorAll(".dock-item[data-tab]").forEach(item => {
+    item.addEventListener("click", () => {
+      const tabId = item.getAttribute("data-tab");
+      switchTab(tabId);
+    });
+  });
+
+  // Drawer Portal Filter Chips
+  document.querySelectorAll(".drawer-portal-chip").forEach(chip => {
+    chip.addEventListener("click", () => {
+      document.querySelectorAll(".drawer-portal-chip").forEach(c => c.classList.remove("active"));
+      chip.classList.add("active");
+      activeSourceFilter = chip.getAttribute("data-source");
+
+      // Sync with top desktop chips
+      document.querySelectorAll(".source-chip").forEach(sc => {
+        sc.classList.toggle("active", sc.getAttribute("data-source") === activeSourceFilter);
+      });
+
+      loadJobs();
+      closeDrawer();
+    });
+  });
+
+  // Drawer Copy Wi-Fi IP
+  const copyBtn = document.getElementById("btn-drawer-copy-ip");
+  if (copyBtn) {
+    copyBtn.addEventListener("click", () => {
+      const ipText = document.getElementById("drawer-wifi-ip").textContent;
+      navigator.clipboard.writeText(ipText).then(() => {
+        copyBtn.textContent = "Copied!";
+        setTimeout(() => { copyBtn.textContent = "Copy URL"; }, 2000);
+      });
+    });
+  }
+
+  // Header Phone Link Button
+  const phoneBtn = document.getElementById("btn-phone-connect");
+  if (phoneBtn) {
+    phoneBtn.addEventListener("click", () => {
+      alert("📱 Mobile Phone Link:\n\nConnect your phone to same Wi-Fi and open:\nhttp://192.168.1.11:5000\n\nor check the Expo app setup to debug via Expo Go!");
+    });
+  }
+
+  // Drawer Login & Logout
+  const drawerLogin = document.getElementById("drawer-btn-login");
+  const drawerLogout = document.getElementById("drawer-btn-logout");
+  if (drawerLogin) {
+    drawerLogin.addEventListener("click", () => {
+      closeDrawer();
+      openLoginModal('login');
+    });
+  }
+  if (drawerLogout) {
+    drawerLogout.addEventListener("click", () => {
+      closeDrawer();
+      handleLogout();
+    });
+  }
 }
 
 // --- Source Filter Chips ---
@@ -339,6 +448,21 @@ function setLoggedInUser(user) {
   renderSelectedDegreesChips();
   renderQualificationsCategories();
 
+  // Update Drawer User Info
+  const drawerName = document.getElementById("drawer-user-name");
+  const drawerLevel = document.getElementById("drawer-user-level");
+  const drawerState = document.getElementById("drawer-user-state");
+  const drawerAvatar = document.getElementById("drawer-avatar");
+  const drawerLogin = document.getElementById("drawer-btn-login");
+  const drawerLogout = document.getElementById("drawer-btn-logout");
+
+  if (drawerName) drawerName.textContent = user.name;
+  if (drawerLevel) drawerLevel.textContent = user.highest_qualification || "Graduate";
+  if (drawerState) drawerState.textContent = user.state || "All India";
+  if (drawerAvatar) drawerAvatar.textContent = (user.name || "U")[0].toUpperCase();
+  if (drawerLogin) drawerLogin.style.display = "none";
+  if (drawerLogout) drawerLogout.style.display = "block";
+
   // Populate Alert Settings
   const topic = user.ntfy_topic || "sarkari_job_alert_user";
   document.getElementById("ntfy-topic-input").value = topic;
@@ -358,6 +482,19 @@ async function handleLogout() {
   document.getElementById("user-header-profile").style.display = "none";
   document.getElementById("btn-open-login").style.display = "inline-flex";
   document.getElementById("user-quals-banner").style.display = "none";
+
+  // Reset Drawer User Info
+  const drawerName = document.getElementById("drawer-user-name");
+  const drawerLevel = document.getElementById("drawer-user-level");
+  const drawerAvatar = document.getElementById("drawer-avatar");
+  const drawerLogin = document.getElementById("drawer-btn-login");
+  const drawerLogout = document.getElementById("drawer-btn-logout");
+  if (drawerName) drawerName.textContent = "Guest Candidate";
+  if (drawerLevel) drawerLevel.textContent = "Select Qualifications";
+  if (drawerAvatar) drawerAvatar.textContent = "U";
+  if (drawerLogin) drawerLogin.style.display = "block";
+  if (drawerLogout) drawerLogout.style.display = "none";
+
   selectedDegrees = ["GRADUATE"];
   renderSelectedDegreesChips();
   openLoginModal('login');
@@ -556,6 +693,11 @@ async function loadJobs() {
     document.getElementById("badge-matched").textContent = cachedMatchedJobs.length;
     document.getElementById("stat-matched-count").textContent = cachedMatchedJobs.length;
     document.getElementById("stat-total-count").textContent = cachedAllJobs.length;
+
+    const dockBadge = document.getElementById("dock-badge-matched");
+    if (dockBadge) dockBadge.textContent = cachedMatchedJobs.length;
+    const drawerBadge = document.getElementById("drawer-badge-matched");
+    if (drawerBadge) drawerBadge.textContent = cachedMatchedJobs.length;
   } catch (err) {
     console.error("Failed to load jobs:", err);
   }

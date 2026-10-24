@@ -12,6 +12,9 @@ venv/
 
 # Node & Android Build
 node_modules/
+**/node_modules/
+.expo/
+**/.expo/
 android/app/build/
 android/.gradle/
 *.apk
