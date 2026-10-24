@@ -1053,6 +1053,56 @@ body {
   text-decoration: underline;
 }
 
+/* ======================================================== */
+/* PAGINATION BAR STYLES                                    */
+/* ======================================================== */
+.pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 24px;
+  padding: 14px 0;
+  flex-wrap: wrap;
+}
+
+.page-btn {
+  font-family: var(--font-family);
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  color: var(--text-muted);
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.page-btn:hover:not(:disabled) {
+  background: #1e293b;
+  color: #fff;
+  border-color: #3b82f6;
+}
+
+.page-btn.active {
+  background: #2563eb;
+  color: #fff;
+  border-color: #2563eb;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+}
+
+.page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.page-info {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  margin: 0 8px;
+}
+
 /* Spinner */
 .spinner {
   width: 32px;

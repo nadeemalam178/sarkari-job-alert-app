@@ -170,6 +170,7 @@
           <p>Scanning job vacancies...</p>
         </div>
       </div>
+      <div id="matched-pagination" class="pagination-bar"></div>
     </div>
 
     <!-- Tab 2: All Jobs -->
@@ -185,6 +186,7 @@
       </div>
 
       <div id="all-jobs-list" class="jobs-list"></div>
+      <div id="all-pagination" class="pagination-bar"></div>
     </div>
 
     <!-- Tab 3: Education & Qualification Selector View -->
@@ -415,5 +417,30 @@
   </footer>
 
   <script src="/app.js"></script>
+
+  <!-- ═══════════════════════════════════════════════════ -->
+  <!-- AGENTATION · Visual Feedback Toolbar for AI Agents  -->
+  <!-- ═══════════════════════════════════════════════════ -->
+  <script type="module">
+    if (location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.search.includes('agentation=true')) {
+      try {
+        console.log('[Agentation] Initializing visual feedback toolbar for AI...');
+        const [{ default: React }, { createRoot }, { Agentation }] = await Promise.all([
+          import('https://esm.sh/react@18.3.1'),
+          import('https://esm.sh/react-dom@18.3.1/client'),
+          import('https://esm.sh/agentation@3?deps=react@18.3.1,react-dom@18.3.1'),
+        ]);
+
+        const mount = document.createElement('div');
+        mount.id = 'agentation-mount';
+        document.body.appendChild(mount);
+
+        createRoot(mount).render(React.createElement(Agentation));
+        console.log('[Agentation] Visual feedback toolbar ready! Click any element to annotate & feed context to AI assistant.');
+      } catch (err) {
+        console.warn('[Agentation] Load failed:', err);
+      }
+    }
+  </script>
 </body>
 </html>

@@ -4,6 +4,11 @@ let currentToken = localStorage.getItem("sarkari_auth_token") || null;
 let activeSourceFilter = "all";
 let cachedMatchedJobs = [];
 let cachedAllJobs = [];
+let filteredMatchedList = [];
+let filteredAllList = [];
+let pageMatched = 1;
+let pageAll = 1;
+const PAGE_SIZE = 6;
 let masterQualifications = [];
 let selectedDegrees = []; // Codes of degrees user selected, e.g. ['B.ED', 'CTET', 'GRADUATE']
 
@@ -530,13 +535,23 @@ async function loadJobs() {
     const resMatched = await authFetch(`/api/jobs?matched_only=true&limit=100${srcParam}`);
     const dataMatched = await resMatched.json();
     cachedMatchedJobs = dataMatched.jobs || [];
-    renderJobsList(cachedMatchedJobs, "matched-jobs-list", true);
+    filteredMatchedList = [...cachedMatchedJobs];
+    pageMatched = 1;
+    renderPaginatedJobs(filteredMatchedList, "matched-jobs-list", "matched-pagination", pageMatched, (newPage) => {
+      pageMatched = newPage;
+      renderPaginatedJobs(filteredMatchedList, "matched-jobs-list", "matched-pagination", pageMatched, arguments.callee);
+    }, true);
 
     // 2. All Jobs
     const resAll = await authFetch(`/api/jobs?matched_only=false&limit=100${srcParam}`);
     const dataAll = await resAll.json();
     cachedAllJobs = dataAll.jobs || [];
-    renderJobsList(cachedAllJobs, "all-jobs-list", false);
+    filteredAllList = [...cachedAllJobs];
+    pageAll = 1;
+    renderPaginatedJobs(filteredAllList, "all-jobs-list", "all-pagination", pageAll, (newPage) => {
+      pageAll = newPage;
+      renderPaginatedJobs(filteredAllList, "all-jobs-list", "all-pagination", pageAll, arguments.callee);
+    }, false);
 
     document.getElementById("badge-matched").textContent = cachedMatchedJobs.length;
     document.getElementById("stat-matched-count").textContent = cachedMatchedJobs.length;
@@ -546,22 +561,10 @@ async function loadJobs() {
   }
 }
 
-async function loadStats() {
-  try {
-    const res = await authFetch("/api/stats");
-    const data = await res.json();
-    if (data.success && data.stats) {
-      document.getElementById("stat-matched-count").textContent = data.stats.total_matched || 0;
-      document.getElementById("stat-total-count").textContent = data.stats.total_checked || 0;
-    }
-  } catch (err) {
-    console.error("Failed to load stats:", err);
-  }
-}
-
-// Render Job Cards with Sarkari Result Priority Badges
-function renderJobsList(jobs, containerId, isMatchedTab) {
+// Render Job Cards with Pagination & Sarkari Result Priority Badges
+function renderPaginatedJobs(jobs, containerId, paginationId, currentPage, onPageChange, isMatchedTab) {
   const container = document.getElementById(containerId);
+  const paginationContainer = document.getElementById(paginationId);
   if (!container) return;
 
   if (jobs.length === 0) {
@@ -571,10 +574,17 @@ function renderJobsList(jobs, containerId, isMatchedTab) {
         ${isMatchedTab ? '<p style="margin-top:6px; font-size:0.85rem;">Tip: Open <strong>My Education & Qualifications</strong> tab to add degrees or change level!</p>' : ''}
       </div>
     `;
+    if (paginationContainer) paginationContainer.innerHTML = "";
     return;
   }
 
-  container.innerHTML = jobs.map(job => {
+  // Slice jobs for current page
+  const totalPages = Math.ceil(jobs.length / PAGE_SIZE);
+  const validPage = Math.max(1, Math.min(currentPage, totalPages));
+  const startIndex = (validPage - 1) * PAGE_SIZE;
+  const pageSlice = jobs.slice(startIndex, startIndex + PAGE_SIZE);
+
+  container.innerHTML = pageSlice.map(job => {
     let sourceBadge = `<span class="source-badge source-sr">SarkariResult ★</span>`;
     if (job.source === "FreeJobAlert") {
       sourceBadge = `<span class="source-badge source-fja">FreeJobAlert</span>`;
@@ -620,31 +630,59 @@ function renderJobsList(jobs, containerId, isMatchedTab) {
       </article>
     `;
   }).join("");
+
+  // Render pagination bar
+  if (paginationContainer) {
+    if (totalPages <= 1) {
+      paginationContainer.innerHTML = "";
+    } else {
+      let pagesHtml = `<button class="page-btn" ${validPage === 1 ? 'disabled' : ''} data-p="${validPage - 1}">&larr; Prev</button>`;
+      for (let p = 1; p <= totalPages; p++) {
+        pagesHtml += `<button class="page-btn ${p === validPage ? 'active' : ''}" data-p="${p}">${p}</button>`;
+      }
+      pagesHtml += `<button class="page-btn" ${validPage === totalPages ? 'disabled' : ''} data-p="${validPage + 1}">Next &rarr;</button>`;
+      pagesHtml += `<span class="page-info">Page ${validPage} of ${totalPages} (${jobs.length} jobs)</span>`;
+
+      paginationContainer.innerHTML = pagesHtml;
+
+      paginationContainer.querySelectorAll(".page-btn[data-p]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const targetP = parseInt(btn.getAttribute("data-p"));
+          if (!isNaN(targetP) && targetP >= 1 && targetP <= totalPages) {
+            renderPaginatedJobs(jobs, containerId, paginationId, targetP, onPageChange, isMatchedTab);
+            container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        });
+      });
+    }
+  }
 }
 
-// Live Search Filters
+// Live Search Filters with Pagination Reset
 function filterMatchedJobs(e) {
   const query = e.target.value.toLowerCase().trim();
-  const filtered = cachedMatchedJobs.filter(j => 
+  filteredMatchedList = cachedMatchedJobs.filter(j => 
     j.title.toLowerCase().includes(query) ||
     (j.org && j.org.toLowerCase().includes(query)) ||
     (j.source && j.source.toLowerCase().includes(query)) ||
     (j.matched_keywords && j.matched_keywords.some(k => k.toLowerCase().includes(query))) ||
     (j.eligibility_snippet && j.eligibility_snippet.toLowerCase().includes(query))
   );
-  renderJobsList(filtered, "matched-jobs-list", true);
+  pageMatched = 1;
+  renderPaginatedJobs(filteredMatchedList, "matched-jobs-list", "matched-pagination", pageMatched, null, true);
 }
 
 function filterAllJobs(e) {
   const query = e.target.value.toLowerCase().trim();
-  const filtered = cachedAllJobs.filter(j => 
+  filteredAllList = cachedAllJobs.filter(j => 
     j.title.toLowerCase().includes(query) ||
     (j.org && j.org.toLowerCase().includes(query)) ||
     (j.source && j.source.toLowerCase().includes(query)) ||
     (j.qualifications_found && j.qualifications_found.some(k => k.toLowerCase().includes(query))) ||
     (j.eligibility_snippet && j.eligibility_snippet.toLowerCase().includes(query))
   );
-  renderJobsList(filtered, "all-jobs-list", false);
+  pageAll = 1;
+  renderPaginatedJobs(filteredAllList, "all-jobs-list", "all-pagination", pageAll, null, false);
 }
 
 // Trigger Manual Scrape
