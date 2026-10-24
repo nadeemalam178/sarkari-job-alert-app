@@ -36,8 +36,8 @@ export default function App() {
         }
         return false;
       };
-      BackHandler.addEventListener('hardwareBackPress', onBackPress);
-      return () => BackHandler.removeEventListener('hardwareBackPress', onBackPress);
+      const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => subscription.remove();
     }
   }, []);
 
@@ -54,34 +54,7 @@ export default function App() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar style="light" backgroundColor="#0b0f19" />
-
-      {/* Top Mobile Debug Header */}
-      <View style={styles.topBar}>
-        <View style={styles.brandRow}>
-          <Text style={styles.brandEmoji}>🎯</Text>
-          <View>
-            <Text style={styles.brandTitle}>Sarkari Job Alert</Text>
-            <Text style={styles.serverInfo} numberOfLines={1}>{serverUrl}</Text>
-          </View>
-        </View>
-
-        <View style={styles.topActions}>
-          <TouchableOpacity
-            style={styles.actionBtn}
-            onPress={() => webViewRef.current?.reload()}
-          >
-            <Text style={styles.actionBtnText}>🔄</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.actionBtn}
-            onPress={() => setIsSettingsOpen(true)}
-          >
-            <Text style={styles.actionBtnText}>⚙️</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+      <StatusBar style="auto" />
 
       {/* Main WebView Container */}
       <View style={styles.webContainer}>
@@ -90,7 +63,7 @@ export default function App() {
             <Text style={styles.errorIcon}>⚠️</Text>
             <Text style={styles.errorTitle}>Cannot Connect to Server</Text>
             <Text style={styles.errorDesc}>
-              Make sure your laptop and phone are on the same Wi-Fi network and the Python server is running (`run.bat`).
+              Make sure your laptop and phone are on the same Wi-Fi network and the server is running.
             </Text>
             <Text style={styles.currentIpLabel}>Target: {serverUrl}</Text>
 
@@ -143,24 +116,25 @@ export default function App() {
       <Modal
         visible={isSettingsOpen}
         transparent={true}
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setIsSettingsOpen(false)}
       >
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>⚙️ Debug Server Settings</Text>
+            <Text style={styles.modalTitle}>Configure Server URL</Text>
             <Text style={styles.modalSub}>
-              Enter the local IP address of your computer running `run.bat`:
+              Enter your laptop's local Wi-Fi IP (e.g. http://192.168.1.11:5000):
             </Text>
 
             <TextInput
               style={styles.ipInput}
               value={tempUrl}
               onChangeText={setTempUrl}
-              placeholder="http://192.168.1.11:5000"
+              placeholder="http://192.168.x.x:5000"
               placeholderTextColor="#64748b"
               autoCapitalize="none"
               autoCorrect={false}
+              keyboardType="url"
             />
 
             <View style={styles.modalBtnRow}>
@@ -175,7 +149,7 @@ export default function App() {
                 style={[styles.modalBtn, styles.saveBtn]}
                 onPress={handleSaveUrl}
               >
-                <Text style={styles.saveBtnText}>Save & Reload</Text>
+                <Text style={styles.saveBtnText}>Save & Connect</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -191,50 +165,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#0b0f19',
     paddingTop: Platform.OS === 'android' ? RNStatusBar.currentHeight : 0,
   },
-  topBar: {
-    height: 52,
-    backgroundColor: '#111827',
-    borderBottomWidth: 1,
-    borderBottomColor: '#1f2937',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 14,
-  },
-  brandRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flex: 1,
-  },
-  brandEmoji: {
-    fontSize: 20,
-  },
-  brandTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#f8fafc',
-  },
-  serverInfo: {
-    fontSize: 10,
-    color: '#94a3b8',
-  },
-  topActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  actionBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 8,
-    backgroundColor: '#1f2937',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionBtnText: {
-    fontSize: 14,
-  },
   webContainer: {
     flex: 1,
     position: 'relative',
@@ -242,11 +172,11 @@ const styles = StyleSheet.create({
   },
   webview: {
     flex: 1,
-    backgroundColor: '#0b0f19',
+    backgroundColor: 'transparent',
   },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#0b0f19',
+    backgroundColor: 'rgba(11, 15, 25, 0.9)',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 12,

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="auto">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -26,13 +26,14 @@
 </head>
 <body>
 
-  <!-- Top App Navigation -->
+  <!-- ======================================================== -->
+  <!-- TOP APP HEADER                                           -->
+  <!-- ======================================================== -->
   <header class="app-header">
     <div class="header-container">
       <div class="header-left">
-        <!-- Hamburger Menu Button for Side Panel Drawer -->
-        <button id="btn-toggle-drawer" class="btn-icon-drawer" aria-label="Open Side Panel">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <button id="btn-toggle-drawer" class="btn-icon-header" aria-label="Open Menu">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <line x1="3" y1="12" x2="21" y2="12"></line>
             <line x1="3" y1="6" x2="21" y2="6"></line>
             <line x1="3" y1="18" x2="21" y2="18"></line>
@@ -41,51 +42,50 @@
 
         <div class="brand">
           <div class="brand-icon">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
               <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
               <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
             </svg>
           </div>
-          <div>
+          <div class="brand-text">
             <h1 class="brand-title">Sarkari Job Alert</h1>
-            <p class="brand-subtitle">Smart Qualification Matcher • Sarkari Result Preferred</p>
+            <p class="brand-subtitle">Smart Qualification Matcher</p>
           </div>
         </div>
       </div>
       
       <div class="header-actions">
-        <!-- Phone Debug Button -->
-        <button id="btn-phone-connect" class="btn btn-outline btn-sm desktop-only" title="Connect Phone on Wi-Fi">
-          <span>📱 Phone Link</span>
+        <!-- Theme Switcher Button -->
+        <button id="btn-theme-toggle" class="btn-icon-header" title="Toggle Theme (Auto / Light / Dark)" aria-label="Toggle Theme">
+          <span id="theme-toggle-icon">🌗</span>
         </button>
 
-        <!-- Logged-in User Profile Pill -->
+        <!-- Refresh Button -->
+        <button id="btn-check-now" class="btn-icon-header" title="Refresh job vacancies" aria-label="Refresh Jobs">
+          <svg class="spin-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+          </svg>
+        </button>
+
+        <!-- Logged-in User Profile Header Pill -->
         <div id="user-header-profile" class="user-pill-container" style="display:none;">
           <div class="user-avatar" id="header-user-avatar">U</div>
-          <div class="user-meta">
+          <div class="user-meta desktop-only">
             <span class="user-name" id="header-user-name">Candidate</span>
             <span class="user-state" id="header-user-level">Graduate</span>
           </div>
-          <button id="btn-edit-edu-header" class="btn btn-xs btn-outline desktop-only" title="Change Qualifications">Edit Edu</button>
-          <button id="btn-logout" class="btn btn-xs btn-outline desktop-only" title="Log out">Logout</button>
         </div>
 
+        <!-- Login / Sign Up Button (Guest) -->
         <button id="btn-open-login" class="btn btn-primary btn-sm">
-          <span>Log In / Sign Up</span>
-        </button>
-
-        <button id="btn-check-now" class="btn btn-secondary btn-sm" title="Refresh job portals">
-          <svg class="spin-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
-          </svg>
-          <span class="btn-text desktop-only">Refresh</span>
+          <span>Log In</span>
         </button>
       </div>
     </div>
   </header>
 
   <!-- ======================================================== -->
-  <!-- SLIDE-OUT SIDE PANEL (DRAWER NAVIGATION)                 -->
+  <!-- SLIDE-OUT SETTINGS & PREFERENCES DRAWER                  -->
   <!-- ======================================================== -->
   <div id="drawer-backdrop" class="drawer-backdrop"></div>
   <aside id="side-panel-drawer" class="side-panel-drawer">
@@ -98,22 +98,34 @@
           <span class="drawer-state" id="drawer-user-state">All India</span>
         </div>
       </div>
-      <button id="btn-close-drawer" class="drawer-close-btn">&times;</button>
+      <button id="btn-close-drawer" class="drawer-close-btn" aria-label="Close Drawer">&times;</button>
     </div>
 
     <div class="drawer-body">
-      <!-- Section: Navigation -->
+      <!-- Section: Appearance / Theme -->
+      <div class="drawer-section">
+        <span class="drawer-section-title">Appearance / Theme</span>
+        <div class="theme-switch-grid">
+          <button class="theme-choice-btn active" data-theme-val="auto">
+            <span>🌗</span> Auto (Device)
+          </button>
+          <button class="theme-choice-btn" data-theme-val="light">
+            <span>☀️</span> Light
+          </button>
+          <button class="theme-choice-btn" data-theme-val="dark">
+            <span>🌙</span> Dark
+          </button>
+        </div>
+      </div>
+
+      <!-- Section: Navigation Shortcuts -->
       <div class="drawer-section">
         <span class="drawer-section-title">Navigation</span>
         <ul class="drawer-nav-list">
-          <li class="drawer-nav-item active" data-tab="tab-matched">
+          <li class="drawer-nav-item active" data-tab="tab-jobs">
             <span class="nav-icon">🎯</span>
-            <span class="nav-text">Jobs Matching Degrees</span>
+            <span class="nav-text">Govt Job Openings</span>
             <span class="drawer-counter-badge" id="drawer-badge-matched">0</span>
-          </li>
-          <li class="drawer-nav-item" data-tab="tab-all">
-            <span class="nav-icon">🌐</span>
-            <span class="nav-text">All Govt Vacancies</span>
           </li>
           <li class="drawer-nav-item" data-tab="tab-education">
             <span class="nav-icon">🎓</span>
@@ -121,221 +133,187 @@
           </li>
           <li class="drawer-nav-item" data-tab="tab-alerts">
             <span class="nav-icon">🔔</span>
-            <span class="nav-text">Phone Notifications</span>
+            <span class="nav-text">Phone Push Notifications</span>
           </li>
         </ul>
       </div>
 
-      <!-- Section: Portal Filter -->
+      <!-- Section: Source Portals Filter -->
       <div class="drawer-section">
         <span class="drawer-section-title">Filter by Source Portal</span>
         <div class="drawer-portals-grid">
-          <button class="drawer-portal-chip active" data-source="all">All Portals</button>
-          <button class="drawer-portal-chip" data-source="SarkariResult">SarkariResult ★</button>
-          <button class="drawer-portal-chip" data-source="FreeJobAlert">FreeJobAlert</button>
-          <button class="drawer-portal-chip" data-source="RojgarResult">RojgarResult</button>
+          <button class="drawer-portal-chip active" data-source="all">All Portals (Deduplicated)</button>
+          <button class="drawer-portal-chip" data-source="SarkariResult">SarkariResult.com ★</button>
+          <button class="drawer-portal-chip" data-source="FreeJobAlert">FreeJobAlert.com</button>
+          <button class="drawer-portal-chip" data-source="RojgarResult">RojgarResult.com</button>
         </div>
       </div>
 
-      <!-- Section: Mobile Debug Helper -->
+      <!-- Section: Quick Portal Direct Links -->
       <div class="drawer-section">
-        <span class="drawer-section-title">📱 Phone Debug / Wi-Fi Link</span>
-        <div class="drawer-wifi-box">
-          <p class="wifi-hint">Open this on your mobile phone on same Wi-Fi:</p>
-          <code id="drawer-wifi-ip">http://192.168.1.11:5000</code>
-          <button id="btn-drawer-copy-ip" class="btn btn-xs btn-secondary" style="margin-top:6px;">Copy URL</button>
+        <span class="drawer-section-title">Official Portals</span>
+        <div class="drawer-links-list">
+          <a href="https://www.sarkariresult.com" target="_blank" rel="noopener" class="drawer-link-item">
+            <span>SarkariResult.com</span>
+            <span>&nearr;</span>
+          </a>
+          <a href="https://www.freejobalert.com" target="_blank" rel="noopener" class="drawer-link-item">
+            <span>FreeJobAlert.com</span>
+            <span>&nearr;</span>
+          </a>
+          <a href="https://www.rojgarresult.com" target="_blank" rel="noopener" class="drawer-link-item">
+            <span>RojgarResult.com</span>
+            <span>&nearr;</span>
+          </a>
         </div>
       </div>
     </div>
 
     <div class="drawer-footer">
       <button id="drawer-btn-login" class="btn btn-primary btn-block">Log In / Sign Up</button>
-      <button id="drawer-btn-logout" class="btn btn-outline btn-block" style="display:none; margin-top:8px;">Logout</button>
+      <button id="drawer-btn-logout" class="btn btn-outline btn-block" style="display:none;">Logout</button>
+      <p class="drawer-app-version">Sarkari Job Alert • v2.0 (SDK 58)</p>
     </div>
   </aside>
 
   <!-- ======================================================== -->
-  <!-- MOBILE BOTTOM DOCK BAR (MODERN FLOATING NAVIGATION)      -->
+  <!-- MOBILE BOTTOM DOCK BAR                                   -->
   <!-- ======================================================== -->
   <nav id="mobile-bottom-dock" class="mobile-bottom-dock">
     <div class="dock-container">
-      <button class="dock-item active" data-tab="tab-matched">
+      <button class="dock-item active" data-tab="tab-jobs" aria-label="Jobs">
         <div class="dock-icon-wrapper">
           <span class="dock-icon">🎯</span>
           <span id="dock-badge-matched" class="dock-badge">0</span>
         </div>
-        <span class="dock-label">For You</span>
+        <span class="dock-label">Jobs</span>
       </button>
 
-      <button class="dock-item" data-tab="tab-all">
-        <div class="dock-icon-wrapper">
-          <span class="dock-icon">🌐</span>
-        </div>
-        <span class="dock-label">All Jobs</span>
-      </button>
-
-      <button class="dock-item" data-tab="tab-education">
+      <button class="dock-item" data-tab="tab-education" aria-label="Education">
         <div class="dock-icon-wrapper">
           <span class="dock-icon">🎓</span>
         </div>
         <span class="dock-label">Education</span>
       </button>
 
-      <button class="dock-item" data-tab="tab-alerts">
+      <button class="dock-item" data-tab="tab-alerts" aria-label="Alerts">
         <div class="dock-icon-wrapper">
           <span class="dock-icon">🔔</span>
         </div>
         <span class="dock-label">Alerts</span>
       </button>
 
-      <button id="btn-dock-menu" class="dock-item">
+      <button id="btn-dock-menu" class="dock-item" aria-label="Menu">
         <div class="dock-icon-wrapper">
-          <span class="dock-icon">☰</span>
+          <span class="dock-icon">⚙️</span>
         </div>
-        <span class="dock-label">Menu</span>
+        <span class="dock-label">Settings</span>
       </button>
     </div>
   </nav>
 
-  <!-- Active Qualification Banner -->
-  <div id="user-quals-banner" class="quals-banner" style="display:none;">
-    <div class="quals-banner-content">
-      <div class="banner-title">
-        <span>🎯 Your Qualifications:</span>
-      </div>
-      <div id="banner-chips" class="banner-chips"></div>
-      <button id="btn-edit-quals-banner" class="btn btn-xs btn-outline">Change</button>
-    </div>
-  </div>
-
-  <!-- Main Container -->
+  <!-- ======================================================== -->
+  <!-- MAIN APP CONTAINER                                       -->
+  <!-- ======================================================== -->
   <main class="main-content">
 
-    <!-- Stats Overview Cards -->
-    <section class="stats-grid">
-      <div class="stat-card stat-matched">
-        <div class="stat-icon-wrapper match-bg">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-            <polyline points="22 4 12 14.01 9 11.01"></polyline>
-          </svg>
-        </div>
-        <div class="stat-info">
-          <span class="stat-label">Matching Jobs For You</span>
-          <h3 id="stat-matched-count" class="stat-value">0</h3>
-        </div>
-      </div>
-
-      <div class="stat-card">
-        <div class="stat-icon-wrapper total-bg">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
-            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
-          </svg>
-        </div>
-        <div class="stat-info">
-          <span class="stat-label">Active Vacancies Tracked</span>
-          <h3 id="stat-total-count" class="stat-value">0</h3>
-        </div>
-      </div>
-
-      <div class="stat-card">
-        <div class="stat-icon-wrapper time-bg">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <circle cx="12" cy="12" r="10"></circle>
-            <path d="M12 2a10 10 0 1 0 10 10H12V2z"></path>
-          </svg>
-        </div>
-        <div class="stat-info">
-          <span class="stat-label">Filtered Sources</span>
-          <h4 id="stat-sources-count" class="stat-value-sm">Sarkari Result Priority</h4>
-        </div>
-      </div>
-    </section>
-
-    <!-- Source Filter Chips -->
-    <div class="sources-filter-row">
-      <span class="filter-label">Filter by Portal:</span>
-      <div class="filter-chips" id="source-filters">
-        <button class="source-chip active" data-source="all">All Vacancies (Deduplicated)</button>
-        <button class="source-chip" data-source="SarkariResult">SarkariResult.com ★</button>
-        <button class="source-chip" data-source="FreeJobAlert">FreeJobAlert.com</button>
-        <button class="source-chip" data-source="RojgarResult">RojgarResult.com</button>
-      </div>
-    </div>
-
-    <!-- Navigation Tabs -->
-    <nav class="tabs-nav">
-      <button class="tab-btn active" data-tab="tab-matched">
-        <span class="tab-icon">🎯</span> Jobs For You
-        <span id="badge-matched" class="tab-badge">0</span>
+    <!-- DESKTOP TOP NAV TABS (HIDDEN ON MOBILE) -->
+    <nav class="desktop-tabs-nav desktop-only">
+      <button class="desktop-tab-btn active" data-tab="tab-jobs">
+        <span class="tab-icon">🎯</span> Govt Vacancies
+        <span id="desktop-badge-matched" class="tab-badge">0</span>
       </button>
-      <button class="tab-btn" data-tab="tab-all">
-        <span class="tab-icon">🌐</span> All Active Govt Jobs
-      </button>
-      <button class="tab-btn" data-tab="tab-education">
+      <button class="desktop-tab-btn" data-tab="tab-education">
         <span class="tab-icon">🎓</span> My Education & Qualifications
       </button>
-      <button class="tab-btn" data-tab="tab-alerts">
+      <button class="desktop-tab-btn" data-tab="tab-alerts">
         <span class="tab-icon">🔔</span> Phone Notifications
       </button>
     </nav>
 
-    <!-- Tab 1: Recommended Matched Jobs -->
-    <div id="tab-matched" class="tab-panel active">
-      <div class="panel-header">
-        <div>
-          <h2 class="panel-title">Jobs Matching Your Qualifications</h2>
-          <p class="panel-desc">Only verified recruitment openings matching your highest qualification and specific degrees appear here.</p>
+    <!-- ====================================================== -->
+    <!-- TAB 1: UNIFIED JOBS FEED (FOR YOU + ALL VACANCIES)      -->
+    <!-- ====================================================== -->
+    <section id="tab-jobs" class="tab-panel active">
+      
+      <!-- Top Clean Action Bar: Sub-Tabs & Filter -->
+      <div class="jobs-controls-card">
+        
+        <!-- Segmented Toggle: For You vs All Jobs -->
+        <div class="segmented-control">
+          <button id="subtab-btn-matched" class="seg-btn active">
+            <span>🎯 For You</span>
+            <span id="badge-matched" class="seg-badge">0</span>
+          </button>
+          <button id="subtab-btn-all" class="seg-btn">
+            <span>🌐 All Vacancies</span>
+            <span id="badge-all" class="seg-badge">0</span>
+          </button>
         </div>
-        <div class="search-box">
-          <input type="text" id="matched-search-input" placeholder="Search by post, board, degree..." />
+
+        <!-- Live Search Box -->
+        <div class="search-input-wrapper">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="jobs-search-input" placeholder="Search post, board, degree (e.g. B.Ed, Police, Civil)..." />
+          <button id="btn-clear-search" class="clear-search-btn" style="display:none;" aria-label="Clear Search">&times;</button>
+        </div>
+
+        <!-- Horizontal Scrollable Portal Chips -->
+        <div class="portal-chips-scroll">
+          <button class="source-chip active" data-source="all">All Portals</button>
+          <button class="source-chip" data-source="SarkariResult">SarkariResult ★</button>
+          <button class="source-chip" data-source="FreeJobAlert">FreeJobAlert</button>
+          <button class="source-chip" data-source="RojgarResult">RojgarResult</button>
+        </div>
+
+        <!-- Dynamic User Education Summary Strip (Clickable to Edit) -->
+        <div id="user-quals-strip" class="quals-summary-strip" style="display:none;">
+          <div class="strip-left">
+            <span class="strip-label">Matching:</span>
+            <div id="strip-chips" class="strip-chips-container"></div>
+          </div>
+          <button id="btn-strip-edit-edu" class="strip-edit-btn" title="Edit Qualifications">Edit</button>
         </div>
       </div>
 
-      <div id="matched-jobs-list" class="jobs-list">
+      <!-- Feed Status & Counts -->
+      <div class="feed-header-row">
+        <span id="feed-status-text" class="feed-status-label">Showing jobs matching your qualifications</span>
+        <span id="feed-count-pill" class="feed-count-pill">0 jobs</span>
+      </div>
+
+      <!-- Job Cards Container -->
+      <div id="jobs-list-container" class="jobs-list">
         <div class="loading-state">
           <div class="spinner"></div>
           <p>Scanning job vacancies...</p>
         </div>
       </div>
-      <div id="matched-pagination" class="pagination-bar"></div>
-    </div>
 
-    <!-- Tab 2: All Jobs -->
-    <div id="tab-all" class="tab-panel">
-      <div class="panel-header">
-        <div>
-          <h2 class="panel-title">All Active Government Recruitment Openings</h2>
-          <p class="panel-desc">All non-job entries (results, admit cards, scholarships) are strictly excluded.</p>
-        </div>
-        <div class="search-box">
-          <input type="text" id="all-search-input" placeholder="Search all jobs..." />
-        </div>
-      </div>
+      <!-- Pagination -->
+      <div id="jobs-pagination" class="pagination-bar"></div>
+    </section>
 
-      <div id="all-jobs-list" class="jobs-list"></div>
-      <div id="all-pagination" class="pagination-bar"></div>
-    </div>
-
-    <!-- Tab 3: Education & Qualification Selector View -->
-    <div id="tab-education" class="tab-panel">
+    <!-- ====================================================== -->
+    <!-- TAB 2: MY EDUCATION & QUALIFICATION SELECTOR            -->
+    <!-- ====================================================== -->
+    <section id="tab-education" class="tab-panel">
       <div class="panel-card">
         <div class="card-head">
-          <h2 class="panel-title">Your Educational Qualifications Profile</h2>
-          <p class="panel-desc">Set your highest qualification level and pick your specific degrees. Jobs automatically re-filter in real-time!</p>
+          <h2 class="panel-title">My Qualifications Profile</h2>
+          <p class="panel-desc">Select your qualification to see relevant government jobs. Matches update immediately.</p>
         </div>
 
-        <!-- 1. Highest Qualification Selector -->
+        <!-- 1. Highest Qualification Level Selector -->
         <div class="form-section">
-          <label class="section-label">1. What is your Highest Qualification?</label>
+          <label class="section-label">1. Highest Qualification Level:</label>
           <div class="level-cards-grid" id="highest-level-grid">
             <label class="level-card">
               <input type="radio" name="highest-level" value="Post Graduate">
               <div class="level-card-inner">
                 <span class="level-icon">🎓</span>
                 <span class="level-title">Post Graduate</span>
-                <span class="level-sub">Master / PG / MCA / MBA / M.Tech</span>
+                <span class="level-sub">Master / MCA / MBA / M.Tech / M.Sc</span>
               </div>
             </label>
             <label class="level-card">
@@ -375,9 +353,10 @@
 
         <!-- 2. Search & Select Specific Degrees -->
         <div class="form-section">
-          <label class="section-label">2. Search & Select Specific Degrees / Certifications:</label>
+          <label class="section-label">2. Specific Degrees / Certifications:</label>
+          
           <div class="deg-search-wrapper">
-            <input type="text" id="deg-search-input" placeholder="🔍 Search from 70+ Indian qualifications (e.g. B.Ed, CTET, Civil, 12th PCM, MCA)..." autocomplete="off" />
+            <input type="text" id="deg-search-input" placeholder="🔍 Search degrees (e.g. B.Ed, CTET, Civil, MCA, 12th PCM)..." autocomplete="off" />
             <div id="deg-search-dropdown" class="deg-search-dropdown" style="display:none;"></div>
           </div>
 
@@ -385,13 +364,13 @@
           <div class="selected-degrees-container">
             <span class="selected-label">Selected Degrees:</span>
             <div id="selected-deg-chips" class="selected-chips-box">
-              <span class="hint-text">No specific degrees added yet. Use the search box above or browse categories below.</span>
+              <span class="hint-text">No degrees added yet. Select from the categories below or search above.</span>
             </div>
           </div>
 
           <!-- Browse Categories Accordion -->
           <div class="deg-categories-wrapper">
-            <div class="deg-cat-title">Or browse common qualifications by category:</div>
+            <div class="deg-cat-title">Popular Indian Qualifications:</div>
             <div id="deg-categories-list" class="deg-categories-grid">
               <!-- Dynamically populated from qualifications master -->
             </div>
@@ -400,14 +379,14 @@
 
         <!-- 3. Candidate Details & State -->
         <div class="form-section">
-          <label class="section-label">3. State & Preferences:</label>
+          <label class="section-label">3. Candidate Info & Region:</label>
           <div class="inline-profile-info">
             <div class="input-half">
-              <label for="profile-name-input">Candidate Name:</label>
-              <input type="text" id="profile-name-input" placeholder="Your Name" />
+              <label for="profile-name-input">Your Name:</label>
+              <input type="text" id="profile-name-input" placeholder="Candidate Name" />
             </div>
             <div class="input-half">
-              <label for="profile-state-select">Your State / Region:</label>
+              <label for="profile-state-select">Your State / Domicile:</label>
               <select id="profile-state-select" class="custom-select">
                 <option value="All India">All India</option>
                 <option value="Bihar">Bihar</option>
@@ -426,150 +405,130 @@
         </div>
 
         <div class="card-footer">
-          <button id="btn-save-education" class="btn btn-primary btn-lg">Save Education & View My Jobs &rarr;</button>
+          <button id="btn-save-education" class="btn btn-primary btn-lg">Save & View Matching Jobs &rarr;</button>
           <span id="save-edu-status" class="status-msg"></span>
         </div>
       </div>
-    </div>
+    </section>
 
-    <!-- Tab 4: Phone Push Notification Settings -->
-    <div id="tab-alerts" class="tab-panel">
+    <!-- ====================================================== -->
+    <!-- TAB 3: PHONE PUSH NOTIFICATION SETTINGS                 -->
+    <!-- ====================================================== -->
+    <section id="tab-alerts" class="tab-panel">
       <div class="panel-card">
         <div class="card-head">
-          <h2 class="panel-title">Mobile Push Notifications (Phone Lock Screen)</h2>
-          <p class="panel-desc">Get instant notifications on your phone lock screen whenever a new job matching your qualifications is posted.</p>
+          <h2 class="panel-title">Phone Lockscreen Alerts</h2>
+          <p class="panel-desc">Receive instant notifications on your phone lockscreen whenever new matching jobs appear.</p>
         </div>
 
         <div class="setting-box highlight-box">
           <div class="setting-header">
-            <div class="channel-badge free-badge">Recommended • 100% Free</div>
-            <h3>📱 Instant Phone Lockscreen Push (via ntfy)</h3>
-            <p>Direct push notification with vibration and direct application link on your phone!</p>
+            <div class="channel-badge free-badge">Free • Instant Push</div>
+            <h3>📱 Push Notifications via ntfy</h3>
+            <p>Direct push notification with sound, vibration, and application link on your phone.</p>
           </div>
 
           <div class="form-group">
             <label for="ntfy-topic-input">Your Personal Alert Topic Name:</label>
             <div class="input-with-action">
               <input type="text" id="ntfy-topic-input" readonly />
-              <button id="btn-test-notification" class="btn btn-secondary">Test Notification</button>
+              <button id="btn-test-notification" class="btn btn-secondary">Send Test Alert</button>
             </div>
-            <small class="field-help">
-              To connect your phone:
-              <br>1. Install the free <strong>ntfy</strong> app on your Android or iPhone (or open in browser).
-              <br>2. Tap <strong>+ (Subscribe)</strong> and enter topic: <strong id="ntfy-topic-display">sarkari_job_alert_user</strong>
-              <br>3. Or tap here: <a id="ntfy-link" href="#" target="_blank">Open ntfy.sh Subscription</a>
-            </small>
+            <div class="alert-steps-box">
+              <p><strong>To receive alerts on your phone:</strong></p>
+              <ol>
+                <li>Install the free <strong>ntfy</strong> app from Google Play Store or Apple App Store.</li>
+                <li>Tap <strong>+ (Subscribe)</strong> and enter: <strong id="ntfy-topic-display">sarkari_job_alert_user</strong></li>
+                <li>Or tap this link on your phone: <a id="ntfy-link" href="#" target="_blank">Open ntfy.sh Subscription</a></li>
+              </ol>
+            </div>
           </div>
         </div>
 
         <div class="setting-box">
           <div class="setting-header">
-            <h3>💻 In-Browser Desktop Notification & Audio Chime</h3>
-            <p>Hear a chime and receive notifications while browsing on laptop/desktop.</p>
+            <h3>💻 In-Browser Desktop Notification & Chime</h3>
+            <p>Hear a chime and receive popup alerts while browsing on laptop.</p>
           </div>
           <div class="toggle-list">
             <button id="btn-request-perm" class="btn btn-sm btn-outline">Enable Browser Notifications</button>
           </div>
         </div>
       </div>
-    </div>
+    </section>
 
   </main>
 
   <!-- ======================================================== -->
-  <!-- STEP 1: SIMPLE CLEAN LOGIN / SIGNUP MODAL               -->
+  <!-- STEP 1: CLEAN, PROPERLY ALIGNED LOGIN / SIGNUP MODAL     -->
   <!-- ======================================================== -->
   <div id="auth-modal" class="modal-overlay" style="display:none;">
     <div class="modal-card modal-auth-card">
-      <button class="modal-close" id="btn-close-modal">&times;</button>
+      <button class="modal-close" id="btn-close-modal" aria-label="Close modal">&times;</button>
       
       <div class="modal-header">
         <div class="brand-icon-modal">🔐</div>
         <h2 id="auth-modal-heading">Log In to Your Account</h2>
-        <p class="modal-sub">Log in to view government jobs matching your qualification profile.</p>
+        <p class="modal-sub">View government jobs matched to your educational qualifications.</p>
       </div>
 
       <div class="modal-tabs">
-        <button class="modal-tab-btn active" id="btn-tab-login">🔑 Log In</button>
-        <button class="modal-tab-btn" id="btn-tab-register">🚀 Create Account (10s)</button>
+        <button class="modal-tab-btn active" id="btn-tab-login">🔑 Sign In</button>
+        <button class="modal-tab-btn" id="btn-tab-register">🚀 Create Account</button>
       </div>
 
-      <!-- Login Form (Simple & Clean) -->
+      <!-- Login Form -->
       <form id="form-login" class="auth-form">
         <div class="form-group">
-          <label>Email Address:</label>
-          <input type="email" id="login-email" placeholder="you@email.com" required />
+          <label for="login-email">Email Address</label>
+          <input type="email" id="login-email" placeholder="name@example.com" required autocomplete="email" />
         </div>
         <div class="form-group">
-          <label>Password:</label>
-          <input type="password" id="login-password" placeholder="Your password" required />
+          <label for="login-password">Password</label>
+          <input type="password" id="login-password" placeholder="Enter your password" required autocomplete="current-password" />
         </div>
 
-        <button type="submit" id="btn-submit-login" class="btn btn-primary btn-block">
-          Log In & View My Jobs &rarr;
+        <button type="submit" id="btn-submit-login" class="btn btn-primary btn-block btn-lg">
+          Sign In & View Jobs &rarr;
         </button>
         <div id="login-error-msg" class="auth-error"></div>
       </form>
 
-      <!-- Quick Sign Up Form -->
+      <!-- Registration Form -->
       <form id="form-register" class="auth-form" style="display:none;">
         <div class="form-group">
-          <label>Full Name:</label>
-          <input type="text" id="reg-name" placeholder="e.g. Nadeem Kumar" required />
+          <label for="reg-name">Full Name</label>
+          <input type="text" id="reg-name" placeholder="Candidate Name" required autocomplete="name" />
         </div>
         <div class="form-group">
-          <label>Email Address:</label>
-          <input type="email" id="reg-email" placeholder="you@email.com" required />
+          <label for="reg-email">Email Address</label>
+          <input type="email" id="reg-email" placeholder="name@example.com" required autocomplete="email" />
         </div>
         <div class="form-group">
-          <label>Create Password:</label>
-          <input type="password" id="reg-password" placeholder="At least 6 characters" required />
+          <label for="reg-password">Password</label>
+          <input type="password" id="reg-password" placeholder="Minimum 6 characters" required autocomplete="new-password" />
         </div>
 
-        <button type="submit" id="btn-submit-register" class="btn btn-primary btn-block">
-          Create Account & Choose Qualifications &rarr;
+        <button type="submit" id="btn-submit-register" class="btn btn-primary btn-block btn-lg">
+          Create Account & Setup Education &rarr;
         </button>
         <div id="reg-error-msg" class="auth-error"></div>
       </form>
 
       <div class="modal-footer-hint">
-        <a href="#" id="link-guest-browse">Skip login & browse jobs as guest</a>
+        <button id="link-guest-browse" class="btn-link-guest">Continue as Guest without login &rarr;</button>
       </div>
     </div>
   </div>
 
+  <!-- App Footer -->
   <footer class="app-footer">
     <div class="footer-container">
-      <p>Sarkari Result Job Alert System • Multi-Portal Verified Recruitment Tracker</p>
+      <p>Sarkari Job Alert System • Multi-Portal Verified Recruitment Tracker</p>
       <p class="disclaimer">Non-job notices (results, admit cards) are automatically filtered out. Primary priority given to Sarkari Result.</p>
     </div>
   </footer>
 
   <script src="/app.js"></script>
-
-  <!-- ═══════════════════════════════════════════════════ -->
-  <!-- AGENTATION · Visual Feedback Toolbar for AI Agents  -->
-  <!-- ═══════════════════════════════════════════════════ -->
-  <script type="module">
-    if (location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.search.includes('agentation=true')) {
-      try {
-        console.log('[Agentation] Initializing visual feedback toolbar for AI...');
-        const [{ default: React }, { createRoot }, { Agentation }] = await Promise.all([
-          import('https://esm.sh/react@18.3.1'),
-          import('https://esm.sh/react-dom@18.3.1/client'),
-          import('https://esm.sh/agentation@3?deps=react@18.3.1,react-dom@18.3.1'),
-        ]);
-
-        const mount = document.createElement('div');
-        mount.id = 'agentation-mount';
-        document.body.appendChild(mount);
-
-        createRoot(mount).render(React.createElement(Agentation));
-        console.log('[Agentation] Visual feedback toolbar ready! Click any element to annotate & feed context to AI assistant.');
-      } catch (err) {
-        console.warn('[Agentation] Load failed:', err);
-      }
-    }
-  </script>
 </body>
 </html>

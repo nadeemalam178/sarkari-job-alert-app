@@ -1,228 +1,466 @@
+// ========================================================
+// SARKARI JOB ALERT - MODERN FRONTEND APPLICATION
+// Clean, Uncluttered, Responsive & Multi-Theme Controller
+// ========================================================
+
 // Application State
 let currentUser = null;
 let currentToken = localStorage.getItem("sarkari_auth_token") || null;
-let activeSourceFilter = "all";
+let currentTheme = localStorage.getItem("sarkari_theme") || "auto"; // "auto" | "light" | "dark"
+let activeJobSubtab = "matched"; // "matched" | "all"
+let activeSourceFilter = "all"; // "all" | "SarkariResult" | "FreeJobAlert" | "RojgarResult"
 let cachedMatchedJobs = [];
 let cachedAllJobs = [];
-let filteredMatchedList = [];
-let filteredAllList = [];
-let pageMatched = 1;
-let pageAll = 1;
+let filteredJobsList = [];
+let currentPage = 1;
 const PAGE_SIZE = 6;
 let masterQualifications = [];
-let selectedDegrees = []; // Codes of degrees user selected, e.g. ['B.ED', 'CTET', 'GRADUATE']
+let selectedDegrees = []; // e.g. ['B.ED', 'CTET', 'GRADUATE']
 
-// Web Audio API Chime
-function playAlertChime() {
-  try {
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(587.33, audioCtx.currentTime);
-    osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.12);
-    gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    osc.start();
-    osc.stop(audioCtx.currentTime + 0.5);
-  } catch (e) {
-    console.log("Audio chime error:", e);
-  }
-}
+// --- DOM Ready ---
+document.addEventListener("DOMContentLoaded", async () => {
+  initTheme();
+  initNavigation();
+  initDrawer();
+  initJobControls();
+  initLoginModal();
+  await loadQualificationsMaster();
+  await checkAuthStatus();
+  await loadJobs();
 
-// PWA Service Worker
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(e => console.log('SW error:', e));
+  // Global Header Actions
+  document.getElementById("btn-check-now")?.addEventListener("click", triggerScrapeNow);
+  document.getElementById("btn-save-education")?.addEventListener("click", saveEducationProfile);
+  document.getElementById("btn-test-notification")?.addEventListener("click", testNotification);
+  document.getElementById("btn-request-perm")?.addEventListener("click", requestNotificationPermission);
+  document.getElementById("btn-open-login")?.addEventListener("click", () => openLoginModal('login'));
+  document.getElementById("user-header-profile")?.addEventListener("click", () => {
+    if (currentUser) {
+      openDrawer();
+    } else {
+      openLoginModal('login');
+    }
+  });
+
+  document.getElementById("btn-strip-edit-edu")?.addEventListener("click", () => switchMainTab("tab-education"));
+});
+
+// ========================================================
+// 1. THEME CONTROLLER (DEVICE ADAPTIVE + MANUAL TOGGLE)
+// ========================================================
+function initTheme() {
+  applyTheme(currentTheme);
+
+  // Header quick theme toggle
+  document.getElementById("btn-theme-toggle")?.addEventListener("click", () => {
+    if (currentTheme === "auto") {
+      setTheme("light");
+    } else if (currentTheme === "light") {
+      setTheme("dark");
+    } else {
+      setTheme("auto");
+    }
+  });
+
+  // Drawer theme choice buttons
+  document.querySelectorAll(".theme-choice-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const val = btn.getAttribute("data-theme-val");
+      setTheme(val);
+    });
+  });
+
+  // Listen to OS system theme changes when in "auto" mode
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
+    if (currentTheme === "auto") {
+      applyTheme("auto");
+    }
   });
 }
 
-// Helper to make authenticated requests
-async function authFetch(url, options = {}) {
-  const headers = options.headers || {};
-  if (currentToken) {
-    headers["Authorization"] = `Bearer ${currentToken}`;
-  }
-  options.headers = headers;
-  return fetch(url, options);
+function setTheme(theme) {
+  currentTheme = theme;
+  localStorage.setItem("sarkari_theme", theme);
+  applyTheme(theme);
 }
 
-// DOM Ready
-document.addEventListener("DOMContentLoaded", async () => {
-  initTabs();
-  initLoginModal();
-  initSourceFilters();
-  await loadQualificationsMaster();
+function applyTheme(theme) {
+  const html = document.documentElement;
+  const icon = document.getElementById("theme-toggle-icon");
 
-  // Try authenticating existing session
-  await checkAuthStatus();
+  if (theme === "light") {
+    html.setAttribute("data-theme", "light");
+    if (icon) icon.textContent = "☀️";
+  } else if (theme === "dark") {
+    html.setAttribute("data-theme", "dark");
+    if (icon) icon.textContent = "🌙";
+  } else {
+    html.setAttribute("data-theme", "auto");
+    if (icon) icon.textContent = "🌗";
+  }
 
-  // Load jobs and stats
-  await loadStats();
-  await loadJobs();
+  // Sync drawer buttons active state
+  document.querySelectorAll(".theme-choice-btn").forEach(btn => {
+    btn.classList.toggle("active", btn.getAttribute("data-theme-val") === theme);
+  });
+}
 
-  // Event Listeners
-  document.getElementById("btn-check-now").addEventListener("click", triggerScrapeNow);
-  document.getElementById("btn-save-education").addEventListener("click", saveEducationProfile);
-  document.getElementById("btn-test-notification").addEventListener("click", testNotification);
-  document.getElementById("btn-request-perm").addEventListener("click", requestNotificationPermission);
-  document.getElementById("btn-logout").addEventListener("click", handleLogout);
-  document.getElementById("btn-open-login").addEventListener("click", () => openLoginModal('login'));
-  document.getElementById("btn-edit-edu-header").addEventListener("click", () => switchTab("tab-education"));
-  document.getElementById("btn-edit-quals-banner").addEventListener("click", () => switchTab("tab-education"));
+// ========================================================
+// 2. NAVIGATION (DOCK, DESKTOP TABS & DRAWER SYNC)
+// ========================================================
+function initNavigation() {
+  // Mobile bottom dock items
+  document.querySelectorAll(".dock-item[data-tab]").forEach(item => {
+    item.addEventListener("click", () => {
+      const tabId = item.getAttribute("data-tab");
+      switchMainTab(tabId);
+    });
+  });
 
-  // Drawer & Mobile Dock Initialization
-  initDrawerAndDock();
+  // Desktop top tabs
+  document.querySelectorAll(".desktop-tab-btn[data-tab]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const tabId = btn.getAttribute("data-tab");
+      switchMainTab(tabId);
+    });
+  });
 
-  // Degree Search & Autosuggest
-  initDegreeSearch();
-
-  // Search Inputs
-  document.getElementById("matched-search-input").addEventListener("input", filterMatchedJobs);
-  document.getElementById("all-search-input").addEventListener("input", filterAllJobs);
-});
-
-// --- Tab Switching with Bottom Dock Synchronization ---
-function initTabs() {
-  const tabs = document.querySelectorAll(".tab-btn");
-  tabs.forEach(tab => {
-    tab.addEventListener("click", () => {
-      switchTab(tab.getAttribute("data-tab"));
+  // Drawer navigation items
+  document.querySelectorAll(".drawer-nav-item[data-tab]").forEach(item => {
+    item.addEventListener("click", () => {
+      const tabId = item.getAttribute("data-tab");
+      switchMainTab(tabId);
+      closeDrawer();
     });
   });
 }
 
-function switchTab(targetId) {
-  // Desktop tabs
-  document.querySelectorAll(".tab-btn").forEach(t => {
-    t.classList.toggle("active", t.getAttribute("data-tab") === targetId);
-  });
-  // Tab panels
+function switchMainTab(targetTabId) {
+  // Update Tab panels
   document.querySelectorAll(".tab-panel").forEach(p => {
-    p.classList.toggle("active", p.id === targetId);
+    p.classList.toggle("active", p.id === targetTabId);
   });
-  // Bottom Dock items
+
+  // Update Bottom Dock
   document.querySelectorAll(".dock-item[data-tab]").forEach(d => {
-    d.classList.toggle("active", d.getAttribute("data-tab") === targetId);
+    d.classList.toggle("active", d.getAttribute("data-tab") === targetTabId);
   });
-  // Drawer items
-  document.querySelectorAll(".drawer-nav-item[data-tab]").forEach(item => {
-    item.classList.toggle("active", item.getAttribute("data-tab") === targetId);
+
+  // Update Desktop Tabs
+  document.querySelectorAll(".desktop-tab-btn[data-tab]").forEach(t => {
+    t.classList.toggle("active", t.getAttribute("data-tab") === targetTabId);
+  });
+
+  // Update Drawer Items
+  document.querySelectorAll(".drawer-nav-item[data-tab]").forEach(di => {
+    di.classList.toggle("active", di.getAttribute("data-tab") === targetTabId);
   });
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// --- Side Panel Drawer & Mobile Dock ---
-function initDrawerAndDock() {
+// ========================================================
+// 3. SETTINGS & PREFERENCES DRAWER
+// ========================================================
+function initDrawer() {
   const drawer = document.getElementById("side-panel-drawer");
   const backdrop = document.getElementById("drawer-backdrop");
   const btnToggle = document.getElementById("btn-toggle-drawer");
-  const btnClose = document.getElementById("btn-close-drawer");
   const btnDockMenu = document.getElementById("btn-dock-menu");
-
-  const openDrawer = () => {
-    drawer.classList.add("open");
-    backdrop.classList.add("active");
-  };
-
-  const closeDrawer = () => {
-    drawer.classList.remove("open");
-    backdrop.classList.remove("active");
-  };
+  const btnClose = document.getElementById("btn-close-drawer");
 
   if (btnToggle) btnToggle.addEventListener("click", openDrawer);
   if (btnDockMenu) btnDockMenu.addEventListener("click", openDrawer);
   if (btnClose) btnClose.addEventListener("click", closeDrawer);
   if (backdrop) backdrop.addEventListener("click", closeDrawer);
 
-  // Drawer Nav Items
-  document.querySelectorAll(".drawer-nav-item[data-tab]").forEach(item => {
-    item.addEventListener("click", () => {
-      const tabId = item.getAttribute("data-tab");
-      switchTab(tabId);
-      closeDrawer();
-    });
-  });
-
-  // Dock Items
-  document.querySelectorAll(".dock-item[data-tab]").forEach(item => {
-    item.addEventListener("click", () => {
-      const tabId = item.getAttribute("data-tab");
-      switchTab(tabId);
-    });
-  });
-
   // Drawer Portal Filter Chips
   document.querySelectorAll(".drawer-portal-chip").forEach(chip => {
     chip.addEventListener("click", () => {
-      document.querySelectorAll(".drawer-portal-chip").forEach(c => c.classList.remove("active"));
-      chip.classList.add("active");
-      activeSourceFilter = chip.getAttribute("data-source");
-
-      // Sync with top desktop chips
-      document.querySelectorAll(".source-chip").forEach(sc => {
-        sc.classList.toggle("active", sc.getAttribute("data-source") === activeSourceFilter);
-      });
-
-      loadJobs();
+      const source = chip.getAttribute("data-source");
+      setPortalFilter(source);
       closeDrawer();
     });
   });
-
-  // Drawer Copy Wi-Fi IP
-  const copyBtn = document.getElementById("btn-drawer-copy-ip");
-  if (copyBtn) {
-    copyBtn.addEventListener("click", () => {
-      const ipText = document.getElementById("drawer-wifi-ip").textContent;
-      navigator.clipboard.writeText(ipText).then(() => {
-        copyBtn.textContent = "Copied!";
-        setTimeout(() => { copyBtn.textContent = "Copy URL"; }, 2000);
-      });
-    });
-  }
-
-  // Header Phone Link Button
-  const phoneBtn = document.getElementById("btn-phone-connect");
-  if (phoneBtn) {
-    phoneBtn.addEventListener("click", () => {
-      alert("📱 Mobile Phone Link:\n\nConnect your phone to same Wi-Fi and open:\nhttp://192.168.1.11:5000\n\nor check the Expo app setup to debug via Expo Go!");
-    });
-  }
 
   // Drawer Login & Logout
-  const drawerLogin = document.getElementById("drawer-btn-login");
-  const drawerLogout = document.getElementById("drawer-btn-logout");
-  if (drawerLogin) {
-    drawerLogin.addEventListener("click", () => {
-      closeDrawer();
-      openLoginModal('login');
-    });
-  }
-  if (drawerLogout) {
-    drawerLogout.addEventListener("click", () => {
-      closeDrawer();
-      handleLogout();
-    });
-  }
+  document.getElementById("drawer-btn-login")?.addEventListener("click", () => {
+    closeDrawer();
+    openLoginModal('login');
+  });
+
+  document.getElementById("drawer-btn-logout")?.addEventListener("click", () => {
+    closeDrawer();
+    handleLogout();
+  });
 }
 
-// --- Source Filter Chips ---
-function initSourceFilters() {
-  const chips = document.querySelectorAll(".source-chip");
-  chips.forEach(chip => {
+function openDrawer() {
+  document.getElementById("side-panel-drawer")?.classList.add("open");
+  document.getElementById("drawer-backdrop")?.classList.add("active");
+}
+
+function closeDrawer() {
+  document.getElementById("side-panel-drawer")?.classList.remove("open");
+  document.getElementById("drawer-backdrop")?.classList.remove("active");
+}
+
+// ========================================================
+// 4. UNIFIED JOBS FEED CONTROLLER
+// ========================================================
+function initJobControls() {
+  // Subtabs: For You vs All Vacancies
+  const btnMatched = document.getElementById("subtab-btn-matched");
+  const btnAll = document.getElementById("subtab-btn-all");
+
+  btnMatched?.addEventListener("click", () => {
+    activeJobSubtab = "matched";
+    btnMatched.classList.add("active");
+    btnAll.classList.remove("active");
+    applyFilterAndRender();
+  });
+
+  btnAll?.addEventListener("click", () => {
+    activeJobSubtab = "all";
+    btnAll.classList.add("active");
+    btnMatched.classList.remove("active");
+    applyFilterAndRender();
+  });
+
+  // Search input with clear button
+  const searchInput = document.getElementById("jobs-search-input");
+  const clearBtn = document.getElementById("btn-clear-search");
+
+  searchInput?.addEventListener("input", (e) => {
+    const val = e.target.value.trim();
+    if (clearBtn) clearBtn.style.display = val ? "block" : "none";
+    applyFilterAndRender();
+  });
+
+  clearBtn?.addEventListener("click", () => {
+    if (searchInput) searchInput.value = "";
+    clearBtn.style.display = "none";
+    applyFilterAndRender();
+  });
+
+  // Portal filter chips (horizontal strip)
+  document.querySelectorAll(".portal-chips-scroll .source-chip").forEach(chip => {
     chip.addEventListener("click", () => {
-      chips.forEach(c => c.classList.remove("active"));
-      chip.classList.add("active");
-      activeSourceFilter = chip.getAttribute("data-source");
-      loadJobs();
+      const source = chip.getAttribute("data-source");
+      setPortalFilter(source);
     });
   });
 }
 
-// --- Load Master Qualifications Catalog ---
+function setPortalFilter(source) {
+  activeSourceFilter = source;
+
+  // Sync horizontal chips
+  document.querySelectorAll(".portal-chips-scroll .source-chip").forEach(sc => {
+    sc.classList.toggle("active", sc.getAttribute("data-source") === source);
+  });
+
+  // Sync drawer chips
+  document.querySelectorAll(".drawer-portal-chip").forEach(dc => {
+    dc.classList.toggle("active", dc.getAttribute("data-source") === source);
+  });
+
+  loadJobs();
+}
+
+// Fetch Jobs from Backend
+async function loadJobs() {
+  const container = document.getElementById("jobs-list-container");
+  if (!container) return;
+
+  container.innerHTML = `
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Fetching active vacancies from Sarkari Result...</p>
+    </div>
+  `;
+
+  try {
+    const srcParam = activeSourceFilter !== "all" ? `&source=${encodeURIComponent(activeSourceFilter)}` : "";
+
+    // Parallel fetch for Matched and All jobs
+    const [resMatched, resAll] = await Promise.all([
+      authFetch(`/api/jobs?matched_only=true&limit=100${srcParam}`),
+      authFetch(`/api/jobs?matched_only=false&limit=100${srcParam}`)
+    ]);
+
+    const dataMatched = await resMatched.json();
+    const dataAll = await resAll.json();
+
+    cachedMatchedJobs = dataMatched.jobs || [];
+    cachedAllJobs = dataAll.jobs || [];
+
+    // Update Counter Badges
+    const matchedCount = cachedMatchedJobs.length;
+    const allCount = cachedAllJobs.length;
+
+    const badgeMatched = document.getElementById("badge-matched");
+    const badgeAll = document.getElementById("badge-all");
+    const dockBadge = document.getElementById("dock-badge-matched");
+    const desktopBadge = document.getElementById("desktop-badge-matched");
+    const drawerBadge = document.getElementById("drawer-badge-matched");
+
+    if (badgeMatched) badgeMatched.textContent = matchedCount;
+    if (badgeAll) badgeAll.textContent = allCount;
+    if (dockBadge) dockBadge.textContent = matchedCount;
+    if (desktopBadge) desktopBadge.textContent = matchedCount;
+    if (drawerBadge) drawerBadge.textContent = matchedCount;
+
+    applyFilterAndRender();
+  } catch (err) {
+    console.error("Failed loading jobs:", err);
+    container.innerHTML = `
+      <div class="empty-state">
+        <p>⚠️ Unable to connect to server.</p>
+        <button class="btn btn-primary btn-sm" onclick="loadJobs()" style="margin-top:10px;">Retry</button>
+      </div>
+    `;
+  }
+}
+
+// Apply Search & Tab Filtering and Render Page
+function applyFilterAndRender() {
+  const searchVal = (document.getElementById("jobs-search-input")?.value || "").toLowerCase().trim();
+  const sourceList = activeJobSubtab === "matched" ? cachedMatchedJobs : cachedAllJobs;
+
+  if (!searchVal) {
+    filteredJobsList = [...sourceList];
+  } else {
+    filteredJobsList = sourceList.filter(j => 
+      j.title.toLowerCase().includes(searchVal) ||
+      (j.org && j.org.toLowerCase().includes(searchVal)) ||
+      (j.source && j.source.toLowerCase().includes(searchVal)) ||
+      (j.matched_keywords && j.matched_keywords.some(k => k.toLowerCase().includes(searchVal))) ||
+      (j.qualifications_found && j.qualifications_found.some(k => k.toLowerCase().includes(searchVal))) ||
+      (j.eligibility_snippet && j.eligibility_snippet.toLowerCase().includes(searchVal))
+    );
+  }
+
+  // Update Status Text
+  const statusEl = document.getElementById("feed-status-text");
+  const countEl = document.getElementById("feed-count-pill");
+
+  if (activeJobSubtab === "matched") {
+    if (statusEl) statusEl.textContent = "Jobs matching your qualification & degrees";
+  } else {
+    if (statusEl) statusEl.textContent = "All active government recruitment openings";
+  }
+  if (countEl) countEl.textContent = `${filteredJobsList.length} jobs`;
+
+  currentPage = 1;
+  renderPaginatedPage(currentPage);
+}
+
+// Render Job Cards for Current Page
+function renderPaginatedPage(page) {
+  const container = document.getElementById("jobs-list-container");
+  const paginationContainer = document.getElementById("jobs-pagination");
+  if (!container) return;
+
+  if (filteredJobsList.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <p>No job openings found matching your criteria.</p>
+        ${activeJobSubtab === 'matched' ? `
+          <p style="margin-top:8px; font-size:0.82rem;">
+            Tip: Go to the <strong>Education</strong> tab to add degrees, or switch to <strong>All Vacancies</strong> above.
+          </p>
+          <button class="btn btn-outline btn-sm" onclick="switchMainTab('tab-education')" style="margin-top:10px;">
+            🎓 Update My Qualifications
+          </button>
+        ` : ''}
+      </div>
+    `;
+    if (paginationContainer) paginationContainer.innerHTML = "";
+    return;
+  }
+
+  const totalPages = Math.ceil(filteredJobsList.length / PAGE_SIZE);
+  currentPage = Math.max(1, Math.min(page, totalPages));
+  const startIndex = (currentPage - 1) * PAGE_SIZE;
+  const pageSlice = filteredJobsList.slice(startIndex, startIndex + PAGE_SIZE);
+
+  container.innerHTML = pageSlice.map(job => {
+    let sourceBadge = `<span class="source-badge source-sr">SarkariResult ★</span>`;
+    if (job.source === "FreeJobAlert") {
+      sourceBadge = `<span class="source-badge source-fja">FreeJobAlert</span>`;
+    } else if (job.source === "RojgarResult") {
+      sourceBadge = `<span class="source-badge source-rr">RojgarResult</span>`;
+    }
+
+    const matchedTags = (job.matched_keywords || []).map(k => `<span class="tag-badge tag-matched">✓ ${k}</span>`).join(" ");
+    const otherTags = (job.qualifications_found || [])
+      .filter(q => !(job.matched_keywords || []).includes(q))
+      .slice(0, 3)
+      .map(k => `<span class="tag-badge tag-other">${k}</span>`).join(" ");
+
+    return `
+      <article class="job-card ${job.is_matched ? 'is-matched-card' : ''}">
+        <div class="job-card-top">
+          <div class="job-title-row">
+            ${sourceBadge}
+            <h3 class="job-title">${escapeHtml(job.title)}</h3>
+            ${job.org ? `<span class="job-org">🏢 ${escapeHtml(job.org)}</span>` : ''}
+          </div>
+          <a href="${escapeHtml(job.url)}" target="_blank" rel="noopener" class="btn btn-sm btn-primary">
+            Apply / Details &rarr;
+          </a>
+        </div>
+
+        <div class="job-tags-row">
+          ${matchedTags}
+          ${otherTags}
+        </div>
+
+        <div class="job-snippet">
+          ${escapeHtml(job.eligibility_snippet || "Check official source notification for full details.")}
+        </div>
+
+        <div class="job-card-bottom">
+          <div class="job-date-info">
+            📅 Last Date: <span class="date-val">${escapeHtml(job.last_date || "Refer notification")}</span>
+          </div>
+          <span style="color:var(--text-dim); font-size:0.72rem;">${escapeHtml(job.source || "SarkariResult")}</span>
+        </div>
+      </article>
+    `;
+  }).join("");
+
+  // Render Clean Pagination Controls
+  if (paginationContainer) {
+    if (totalPages <= 1) {
+      paginationContainer.innerHTML = "";
+    } else {
+      let pagesHtml = `<button class="page-btn" ${currentPage === 1 ? 'disabled' : ''} data-p="${currentPage - 1}">&larr; Prev</button>`;
+      for (let p = 1; p <= totalPages; p++) {
+        pagesHtml += `<button class="page-btn ${p === currentPage ? 'active' : ''}" data-p="${p}">${p}</button>`;
+      }
+      pagesHtml += `<button class="page-btn ${currentPage === totalPages ? 'disabled' : ''} data-p="${currentPage + 1}">Next &rarr;</button>`;
+      pagesHtml += `<span class="page-info">Page ${currentPage} of ${totalPages}</span>`;
+
+      paginationContainer.innerHTML = pagesHtml;
+
+      paginationContainer.querySelectorAll(".page-btn[data-p]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const targetP = parseInt(btn.getAttribute("data-p"));
+          if (!isNaN(targetP) && targetP >= 1 && targetP <= totalPages) {
+            renderPaginatedPage(targetP);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }
+        });
+      });
+    }
+  }
+}
+
+// ========================================================
+// 5. EDUCATION PROFILE & DEGREE PICKER
+// ========================================================
 async function loadQualificationsMaster() {
   try {
     const res = await fetch("/api/qualifications-master");
@@ -230,13 +468,13 @@ async function loadQualificationsMaster() {
     if (data.success && data.qualifications) {
       masterQualifications = data.qualifications;
       renderQualificationsCategories();
+      initDegreeSearch();
     }
   } catch (err) {
     console.error("Failed loading master qualifications:", err);
   }
 }
 
-// Render Browse Categories Accordion
 function renderQualificationsCategories() {
   const container = document.getElementById("deg-categories-list");
   if (!container) return;
@@ -277,10 +515,10 @@ function renderQualificationsCategories() {
   }
 }
 
-// --- Degree Search & Autosuggest ---
 function initDegreeSearch() {
   const searchInput = document.getElementById("deg-search-input");
   const dropdown = document.getElementById("deg-search-dropdown");
+  if (!searchInput || !dropdown) return;
 
   searchInput.addEventListener("input", (e) => {
     const query = e.target.value.toLowerCase().trim();
@@ -296,7 +534,7 @@ function initDegreeSearch() {
     );
 
     if (matches.length === 0) {
-      dropdown.innerHTML = `<div class="deg-dropdown-item" style="color:var(--text-dim); cursor:default;">No matching Indian qualification found. Press Enter to add custom keyword.</div>`;
+      dropdown.innerHTML = `<div class="deg-dropdown-item" style="color:var(--text-muted); cursor:default;">Press Enter to add custom keyword "${escapeHtml(query)}"</div>`;
       dropdown.style.display = "block";
       return;
     }
@@ -304,7 +542,7 @@ function initDegreeSearch() {
     dropdown.innerHTML = matches.slice(0, 8).map(m => `
       <div class="deg-dropdown-item" data-code="${m.code}">
         <div>
-          <strong>${escapeHtml(m.code)}</strong> - <span style="color:#cbd5e1;">${escapeHtml(m.name)}</span>
+          <strong>${escapeHtml(m.code)}</strong> - <span>${escapeHtml(m.name)}</span>
         </div>
         <span class="deg-item-cat">${escapeHtml(m.category)}</span>
       </div>
@@ -321,7 +559,6 @@ function initDegreeSearch() {
     });
   });
 
-  // Handle custom keyword on Enter
   searchInput.addEventListener("keypress", (e) => {
     if (e.key === "Enter") {
       const val = searchInput.value.trim().toUpperCase();
@@ -333,7 +570,6 @@ function initDegreeSearch() {
     }
   });
 
-  // Close dropdown on outside click
   document.addEventListener("click", (e) => {
     if (!searchInput.contains(e.target) && !dropdown.contains(e.target)) {
       dropdown.style.display = "none";
@@ -368,7 +604,7 @@ function renderSelectedDegreesChips() {
   if (!container) return;
 
   if (selectedDegrees.length === 0) {
-    container.innerHTML = `<span class="hint-text">No specific degrees added yet. Use search or quick chips above.</span>`;
+    container.innerHTML = `<span class="hint-text" style="color:var(--text-muted); font-size:0.8rem;">No specific degrees added yet. Select from the categories below or search above.</span>`;
     return;
   }
 
@@ -388,7 +624,75 @@ function renderSelectedDegreesChips() {
   });
 }
 
-// --- Auth & Session ---
+// Save Education Profile
+async function saveEducationProfile() {
+  const statusEl = document.getElementById("save-edu-status");
+  const saveBtn = document.getElementById("btn-save-education");
+
+  const highestLevelRadio = document.querySelector('input[name="highest-level"]:checked');
+  const highestLevel = highestLevelRadio ? highestLevelRadio.value : "Graduate";
+  const name = document.getElementById("profile-name-input")?.value.trim() || (currentUser ? currentUser.name : "Candidate");
+  const state = document.getElementById("profile-state-select")?.value || "All India";
+
+  if (statusEl) {
+    statusEl.textContent = "Saving...";
+    statusEl.className = "status-msg";
+  }
+  if (saveBtn) saveBtn.disabled = true;
+
+  try {
+    if (currentToken) {
+      const res = await authFetch("/api/auth/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          highest_qualification: highestLevel,
+          qualifications: selectedDegrees,
+          state
+        })
+      });
+      const data = await res.json();
+      if (data.success && data.user) {
+        setLoggedInUser(data.user);
+      }
+    } else {
+      // Guest local storage update
+      const guestProfile = {
+        name,
+        highest_qualification: highestLevel,
+        qualifications: selectedDegrees,
+        state
+      };
+      localStorage.setItem("sarkari_guest_profile", JSON.stringify(guestProfile));
+      updateUIForProfile(guestProfile);
+    }
+
+    if (statusEl) {
+      statusEl.textContent = "✓ Qualifications Saved! Updating jobs...";
+      statusEl.className = "status-msg status-success";
+    }
+
+    await loadJobs();
+
+    // Immediately switch to the Jobs feed so user sees the result!
+    setTimeout(() => {
+      if (statusEl) statusEl.textContent = "";
+      switchMainTab("tab-jobs");
+    }, 800);
+  } catch (err) {
+    if (statusEl) {
+      statusEl.textContent = "Error saving profile: " + err.message;
+      statusEl.className = "status-msg";
+    }
+  } finally {
+    if (saveBtn) saveBtn.disabled = false;
+  }
+}
+
+// ========================================================
+// 6. AUTHENTICATION & LOGIN / REGISTER MODAL
+// ========================================================
 async function checkAuthStatus() {
   if (currentToken) {
     try {
@@ -403,147 +707,130 @@ async function checkAuthStatus() {
     }
   }
 
-  // Not authenticated: Prompt simple login modal on first visit
-  const guestDismissed = sessionStorage.getItem("sarkari_guest_dismissed");
-  if (!guestDismissed) {
-    openLoginModal('login');
+  // Fallback to Guest Saved Profile
+  const savedGuest = localStorage.getItem("sarkari_guest_profile");
+  if (savedGuest) {
+    try {
+      const profile = JSON.parse(savedGuest);
+      updateUIForProfile(profile);
+    } catch (e) {}
   }
 }
 
 function setLoggedInUser(user) {
   currentUser = user;
+  updateUIForProfile(user);
+
+  // Show profile avatar, hide Login button in header
   document.getElementById("user-header-profile").style.display = "flex";
   document.getElementById("btn-open-login").style.display = "none";
-  document.getElementById("header-user-name").textContent = user.name;
-  document.getElementById("header-user-level").textContent = user.highest_qualification || "Graduate";
-  document.getElementById("header-user-avatar").textContent = (user.name || "U")[0].toUpperCase();
 
-  // Populate Banner
-  const banner = document.getElementById("user-quals-banner");
-  const chipsContainer = document.getElementById("banner-chips");
-  chipsContainer.innerHTML = "";
-  
-  const displayChips = [user.highest_qualification || "Graduate", ...(user.qualifications || [])];
-  const uniqueChips = listUnique(displayChips);
+  // Drawer Auth state
+  const drawerLogin = document.getElementById("drawer-btn-login");
+  const drawerLogout = document.getElementById("drawer-btn-logout");
+  if (drawerLogin) drawerLogin.style.display = "none";
+  if (drawerLogout) drawerLogout.style.display = "block";
 
-  uniqueChips.forEach(q => {
-    const chip = document.createElement("span");
-    chip.className = "banner-chip";
-    chip.textContent = q;
-    chipsContainer.appendChild(chip);
-  });
-  banner.style.display = "block";
+  // Populate Alert Topic
+  const topic = user.ntfy_topic || "sarkari_job_alert_user";
+  const topicInput = document.getElementById("ntfy-topic-input");
+  const topicDisplay = document.getElementById("ntfy-topic-display");
+  const ntfyLink = document.getElementById("ntfy-link");
 
-  // Populate Education Form
-  document.getElementById("profile-name-input").value = user.name || "";
-  document.getElementById("profile-state-select").value = user.state || "All India";
-  
-  // Set highest level radio
-  const levelVal = user.highest_qualification || "Graduate";
-  const radio = document.querySelector(`input[name="highest-level"][value="${levelVal}"]`);
-  if (radio) radio.checked = true;
+  if (topicInput) topicInput.value = topic;
+  if (topicDisplay) topicDisplay.textContent = topic;
+  if (ntfyLink) {
+    ntfyLink.href = `https://ntfy.sh/${topic}`;
+    ntfyLink.textContent = `ntfy.sh/${topic}`;
+  }
+}
 
-  // Set selected degrees
-  selectedDegrees = user.qualifications || ["GRADUATE"];
-  renderSelectedDegreesChips();
-  renderQualificationsCategories();
+function updateUIForProfile(profile) {
+  const highest = profile.highest_qualification || "Graduate";
+  const name = profile.name || "Candidate";
+  const state = profile.state || "All India";
+  const quals = profile.qualifications || ["GRADUATE"];
 
-  // Update Drawer User Info
+  // Header
+  const headerName = document.getElementById("header-user-name");
+  const headerLevel = document.getElementById("header-user-level");
+  const headerAvatar = document.getElementById("header-user-avatar");
+  if (headerName) headerName.textContent = name;
+  if (headerLevel) headerLevel.textContent = highest;
+  if (headerAvatar) headerAvatar.textContent = (name || "U")[0].toUpperCase();
+
+  // Drawer
   const drawerName = document.getElementById("drawer-user-name");
   const drawerLevel = document.getElementById("drawer-user-level");
   const drawerState = document.getElementById("drawer-user-state");
   const drawerAvatar = document.getElementById("drawer-avatar");
-  const drawerLogin = document.getElementById("drawer-btn-login");
-  const drawerLogout = document.getElementById("drawer-btn-logout");
+  if (drawerName) drawerName.textContent = name;
+  if (drawerLevel) drawerLevel.textContent = highest;
+  if (drawerState) drawerState.textContent = state;
+  if (drawerAvatar) drawerAvatar.textContent = (name || "U")[0].toUpperCase();
 
-  if (drawerName) drawerName.textContent = user.name;
-  if (drawerLevel) drawerLevel.textContent = user.highest_qualification || "Graduate";
-  if (drawerState) drawerState.textContent = user.state || "All India";
-  if (drawerAvatar) drawerAvatar.textContent = (user.name || "U")[0].toUpperCase();
-  if (drawerLogin) drawerLogin.style.display = "none";
-  if (drawerLogout) drawerLogout.style.display = "block";
-
-  // Populate Alert Settings
-  const topic = user.ntfy_topic || "sarkari_job_alert_user";
-  document.getElementById("ntfy-topic-input").value = topic;
-  document.getElementById("ntfy-topic-display").textContent = topic;
-  const link = document.getElementById("ntfy-link");
-  if (link) {
-    link.href = `https://ntfy.sh/${topic}`;
-    link.textContent = `ntfy.sh/${topic}`;
+  // Job Strip
+  const strip = document.getElementById("user-quals-strip");
+  const stripChips = document.getElementById("strip-chips");
+  if (strip && stripChips) {
+    const combined = [highest, ...quals];
+    const unique = [...new Set(combined)];
+    stripChips.innerHTML = unique.map(q => `<span class="strip-chip">${escapeHtml(q)}</span>`).join("");
+    strip.style.display = "flex";
   }
-}
 
-async function handleLogout() {
-  await authFetch("/api/auth/logout", { method: "POST" });
-  localStorage.removeItem("sarkari_auth_token");
-  currentToken = null;
-  currentUser = null;
-  document.getElementById("user-header-profile").style.display = "none";
-  document.getElementById("btn-open-login").style.display = "inline-flex";
-  document.getElementById("user-quals-banner").style.display = "none";
+  // Populate Form Fields
+  const nameInput = document.getElementById("profile-name-input");
+  const stateSelect = document.getElementById("profile-state-select");
+  if (nameInput) nameInput.value = name;
+  if (stateSelect) stateSelect.value = state;
 
-  // Reset Drawer User Info
-  const drawerName = document.getElementById("drawer-user-name");
-  const drawerLevel = document.getElementById("drawer-user-level");
-  const drawerAvatar = document.getElementById("drawer-avatar");
-  const drawerLogin = document.getElementById("drawer-btn-login");
-  const drawerLogout = document.getElementById("drawer-btn-logout");
-  if (drawerName) drawerName.textContent = "Guest Candidate";
-  if (drawerLevel) drawerLevel.textContent = "Select Qualifications";
-  if (drawerAvatar) drawerAvatar.textContent = "U";
-  if (drawerLogin) drawerLogin.style.display = "block";
-  if (drawerLogout) drawerLogout.style.display = "none";
+  const radio = document.querySelector(`input[name="highest-level"][value="${highest}"]`);
+  if (radio) radio.checked = true;
 
-  selectedDegrees = ["GRADUATE"];
+  selectedDegrees = quals;
   renderSelectedDegreesChips();
-  openLoginModal('login');
-  loadJobs();
-  loadStats();
+  renderQualificationsCategories();
 }
 
-// --- Login & Registration Modal ---
 function initLoginModal() {
   const modal = document.getElementById("auth-modal");
-  document.getElementById("btn-close-modal").addEventListener("click", () => {
-    modal.style.display = "none";
-    sessionStorage.setItem("sarkari_guest_dismissed", "true");
-  });
-  document.getElementById("link-guest-browse").addEventListener("click", (e) => {
-    e.preventDefault();
-    modal.style.display = "none";
-    sessionStorage.setItem("sarkari_guest_dismissed", "true");
-  });
+  const btnClose = document.getElementById("btn-close-modal");
+  const btnGuest = document.getElementById("link-guest-browse");
 
+  if (btnClose) btnClose.addEventListener("click", () => modal.style.display = "none");
+  if (btnGuest) btnGuest.addEventListener("click", () => modal.style.display = "none");
+
+  // Tab switching inside modal
   const btnTabLogin = document.getElementById("btn-tab-login");
   const btnTabReg = document.getElementById("btn-tab-register");
   const formLogin = document.getElementById("form-login");
   const formReg = document.getElementById("form-register");
   const heading = document.getElementById("auth-modal-heading");
 
-  btnTabLogin.addEventListener("click", () => {
+  btnTabLogin?.addEventListener("click", () => {
     btnTabLogin.classList.add("active");
     btnTabReg.classList.remove("active");
-    formLogin.style.display = "block";
+    formLogin.style.display = "flex";
     formReg.style.display = "none";
-    heading.textContent = "Log In to Your Account";
+    if (heading) heading.textContent = "Log In to Your Account";
   });
 
-  btnTabReg.addEventListener("click", () => {
+  btnTabReg?.addEventListener("click", () => {
     btnTabReg.classList.add("active");
     btnTabLogin.classList.remove("active");
-    formReg.style.display = "block";
+    formReg.style.display = "flex";
     formLogin.style.display = "none";
-    heading.textContent = "Create Candidate Account";
+    if (heading) heading.textContent = "Create Candidate Account";
   });
 
-  // Handle Login Submit
-  formLogin.addEventListener("submit", async (e) => {
+  // Login Form Submit
+  formLogin?.addEventListener("submit", async (e) => {
     e.preventDefault();
     const email = document.getElementById("login-email").value.trim();
     const password = document.getElementById("login-password").value;
     const errEl = document.getElementById("login-error-msg");
-    errEl.textContent = "";
+    if (errEl) errEl.textContent = "";
 
     try {
       const res = await fetch("/api/auth/login", {
@@ -557,25 +844,23 @@ function initLoginModal() {
         localStorage.setItem("sarkari_auth_token", data.token);
         setLoggedInUser(data.user);
         modal.style.display = "none";
-        playAlertChime();
         await loadJobs();
-        await loadStats();
       } else {
-        errEl.textContent = data.error || "Invalid login credentials";
+        if (errEl) errEl.textContent = data.error || "Invalid login credentials";
       }
     } catch (err) {
-      errEl.textContent = err.message;
+      if (errEl) errEl.textContent = err.message;
     }
   });
 
-  // Handle Register Submit
-  formReg.addEventListener("submit", async (e) => {
+  // Register Form Submit
+  formReg?.addEventListener("submit", async (e) => {
     e.preventDefault();
     const name = document.getElementById("reg-name").value.trim();
     const email = document.getElementById("reg-email").value.trim();
     const password = document.getElementById("reg-password").value;
     const errEl = document.getElementById("reg-error-msg");
-    errEl.textContent = "";
+    if (errEl) errEl.textContent = "";
 
     try {
       const res = await fetch("/api/auth/register", {
@@ -593,324 +878,108 @@ function initLoginModal() {
         localStorage.setItem("sarkari_auth_token", data.token);
         setLoggedInUser(data.user);
         modal.style.display = "none";
-        playAlertChime();
-        
-        // Immediate Step 2: Switch straight to "My Education" tab so they set their degrees!
-        switchTab("tab-education");
-        alert(`Welcome, ${name}! Please set your Highest Qualification and Specific Degrees below.`);
+
+        // Direct user to Education tab to configure their specific degrees
+        switchMainTab("tab-education");
         await loadJobs();
-        await loadStats();
       } else {
-        errEl.textContent = data.error || "Registration failed";
+        if (errEl) errEl.textContent = data.error || "Registration failed";
       }
     } catch (err) {
-      errEl.textContent = err.message;
+      if (errEl) errEl.textContent = err.message;
     }
   });
 }
 
 function openLoginModal(tab = 'login') {
   const modal = document.getElementById("auth-modal");
+  if (!modal) return;
   modal.style.display = "flex";
   if (tab === 'login') {
-    document.getElementById("btn-tab-login").click();
+    document.getElementById("btn-tab-login")?.click();
   } else {
-    document.getElementById("btn-tab-register").click();
+    document.getElementById("btn-tab-register")?.click();
   }
 }
 
-// --- Save Education Profile ---
-async function saveEducationProfile() {
-  const name = document.getElementById("profile-name-input").value.trim();
-  const state = document.getElementById("profile-state-select").value;
-  const levelEl = document.querySelector('input[name="highest-level"]:checked');
-  const highestLevel = levelEl ? levelEl.value : "Graduate";
+async function handleLogout() {
+  await authFetch("/api/auth/logout", { method: "POST" });
+  localStorage.removeItem("sarkari_auth_token");
+  currentToken = null;
+  currentUser = null;
 
-  const statusEl = document.getElementById("save-edu-status");
-  statusEl.textContent = "Updating education profile & matching jobs...";
-  statusEl.className = "status-msg";
+  document.getElementById("user-header-profile").style.display = "none";
+  document.getElementById("btn-open-login").style.display = "inline-flex";
 
-  if (!currentToken) {
-    openLoginModal('login');
-    return;
-  }
+  const drawerLogin = document.getElementById("drawer-btn-login");
+  const drawerLogout = document.getElementById("drawer-btn-logout");
+  if (drawerLogin) drawerLogin.style.display = "block";
+  if (drawerLogout) drawerLogout.style.display = "none";
+
+  const drawerName = document.getElementById("drawer-user-name");
+  const drawerLevel = document.getElementById("drawer-user-level");
+  const drawerAvatar = document.getElementById("drawer-avatar");
+  if (drawerName) drawerName.textContent = "Guest Candidate";
+  if (drawerLevel) drawerLevel.textContent = "Select Qualifications";
+  if (drawerAvatar) drawerAvatar.textContent = "U";
+
+  loadJobs();
+}
+
+// ========================================================
+// 7. UTILITIES & ACTIONS
+// ========================================================
+async function triggerScrapeNow() {
+  const header = document.querySelector(".app-header");
+  header?.classList.add("is-refreshing");
 
   try {
-    const res = await authFetch("/api/auth/profile", {
-      method: "PUT",
+    const res = await fetch("/api/scrape", { method: "POST" });
+    const data = await res.json();
+    await loadJobs();
+  } catch (err) {
+    console.error("Scrape error:", err);
+  } finally {
+    header?.classList.remove("is-refreshing");
+  }
+}
+
+async function testNotification() {
+  const topic = document.getElementById("ntfy-topic-input")?.value || "sarkari_job_alert_user";
+  try {
+    const res = await fetch("/api/notify/test", {
+      method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name,
-        state,
-        highest_qualification: highestLevel,
-        qualifications: selectedDegrees.length > 0 ? selectedDegrees : ["GRADUATE"]
-      })
+      body: JSON.stringify({ topic })
     });
     const data = await res.json();
-    if (data.success) {
-      setLoggedInUser(data.user);
-      statusEl.textContent = "Education profile saved! Showing matching jobs.";
-      statusEl.classList.add("status-success");
-      playAlertChime();
-      await loadJobs();
-      await loadStats();
-      setTimeout(() => {
-        switchTab("tab-matched");
-      }, 700);
-    }
-  } catch (err) {
-    statusEl.textContent = "Error: " + err.message;
+    alert(data.success ? "✓ Test alert sent to phone via ntfy!" : "Error: " + data.error);
+  } catch (e) {
+    alert("Error sending test notification: " + e.message);
   }
 }
 
-// --- Jobs & Stats Fetching ---
-async function loadJobs() {
-  try {
-    const srcParam = activeSourceFilter !== "all" ? `&source=${encodeURIComponent(activeSourceFilter)}` : "";
-
-    // 1. Matched Jobs for user
-    const resMatched = await authFetch(`/api/jobs?matched_only=true&limit=100${srcParam}`);
-    const dataMatched = await resMatched.json();
-    cachedMatchedJobs = dataMatched.jobs || [];
-    filteredMatchedList = [...cachedMatchedJobs];
-    pageMatched = 1;
-    renderPaginatedJobs(filteredMatchedList, "matched-jobs-list", "matched-pagination", pageMatched, (newPage) => {
-      pageMatched = newPage;
-      renderPaginatedJobs(filteredMatchedList, "matched-jobs-list", "matched-pagination", pageMatched, arguments.callee);
-    }, true);
-
-    // 2. All Jobs
-    const resAll = await authFetch(`/api/jobs?matched_only=false&limit=100${srcParam}`);
-    const dataAll = await resAll.json();
-    cachedAllJobs = dataAll.jobs || [];
-    filteredAllList = [...cachedAllJobs];
-    pageAll = 1;
-    renderPaginatedJobs(filteredAllList, "all-jobs-list", "all-pagination", pageAll, (newPage) => {
-      pageAll = newPage;
-      renderPaginatedJobs(filteredAllList, "all-jobs-list", "all-pagination", pageAll, arguments.callee);
-    }, false);
-
-    document.getElementById("badge-matched").textContent = cachedMatchedJobs.length;
-    document.getElementById("stat-matched-count").textContent = cachedMatchedJobs.length;
-    document.getElementById("stat-total-count").textContent = cachedAllJobs.length;
-
-    const dockBadge = document.getElementById("dock-badge-matched");
-    if (dockBadge) dockBadge.textContent = cachedMatchedJobs.length;
-    const drawerBadge = document.getElementById("drawer-badge-matched");
-    if (drawerBadge) drawerBadge.textContent = cachedMatchedJobs.length;
-  } catch (err) {
-    console.error("Failed to load jobs:", err);
-  }
-}
-
-// Render Job Cards with Pagination & Sarkari Result Priority Badges
-function renderPaginatedJobs(jobs, containerId, paginationId, currentPage, onPageChange, isMatchedTab) {
-  const container = document.getElementById(containerId);
-  const paginationContainer = document.getElementById(paginationId);
-  if (!container) return;
-
-  if (jobs.length === 0) {
-    container.innerHTML = `
-      <div class="empty-state">
-        <p>No active vacancies matching your criteria.</p>
-        ${isMatchedTab ? '<p style="margin-top:6px; font-size:0.85rem;">Tip: Open <strong>My Education & Qualifications</strong> tab to add degrees or change level!</p>' : ''}
-      </div>
-    `;
-    if (paginationContainer) paginationContainer.innerHTML = "";
-    return;
-  }
-
-  // Slice jobs for current page
-  const totalPages = Math.ceil(jobs.length / PAGE_SIZE);
-  const validPage = Math.max(1, Math.min(currentPage, totalPages));
-  const startIndex = (validPage - 1) * PAGE_SIZE;
-  const pageSlice = jobs.slice(startIndex, startIndex + PAGE_SIZE);
-
-  container.innerHTML = pageSlice.map(job => {
-    let sourceBadge = `<span class="source-badge source-sr">SarkariResult ★</span>`;
-    if (job.source === "FreeJobAlert") {
-      sourceBadge = `<span class="source-badge source-fja">FreeJobAlert</span>`;
-    } else if (job.source === "RojgarResult") {
-      sourceBadge = `<span class="source-badge source-rr">RojgarResult</span>`;
-    }
-
-    const matchedTags = (job.matched_keywords || []).map(k => `<span class="tag-badge tag-matched">MATCH: ${k}</span>`).join(" ");
-    const otherTags = (job.qualifications_found || [])
-      .filter(q => !(job.matched_keywords || []).includes(q))
-      .slice(0, 3)
-      .map(k => `<span class="tag-badge tag-other">${k}</span>`).join(" ");
-
-    return `
-      <article class="job-card ${job.is_matched ? 'is-matched-card' : ''}">
-        <div class="job-card-top">
-          <div class="job-title-row">
-            ${sourceBadge}
-            <h3 class="job-title">${escapeHtml(job.title)}</h3>
-          </div>
-          <a href="${escapeHtml(job.url)}" target="_blank" rel="noopener" class="btn btn-sm btn-primary">
-            Apply / View on Source &rarr;
-          </a>
-        </div>
-        
-        ${job.org ? `<div class="job-org">🏢 ${escapeHtml(job.org)}</div>` : ''}
-
-        <div class="job-tags-row">
-          ${matchedTags}
-          ${otherTags}
-        </div>
-
-        <div class="job-snippet">
-          ${escapeHtml(job.eligibility_snippet || "Check official advertisement on source for eligibility details.")}
-        </div>
-
-        <div class="job-card-bottom">
-          <div class="job-date-info">
-            📅 Last Date: <span class="date-val">${escapeHtml(job.last_date || "Refer notification")}</span>
-          </div>
-          <span style="font-size:0.75rem; color:var(--text-dim);">Source: ${escapeHtml(job.source || "SarkariResult")}</span>
-        </div>
-      </article>
-    `;
-  }).join("");
-
-  // Render pagination bar
-  if (paginationContainer) {
-    if (totalPages <= 1) {
-      paginationContainer.innerHTML = "";
-    } else {
-      let pagesHtml = `<button class="page-btn" ${validPage === 1 ? 'disabled' : ''} data-p="${validPage - 1}">&larr; Prev</button>`;
-      for (let p = 1; p <= totalPages; p++) {
-        pagesHtml += `<button class="page-btn ${p === validPage ? 'active' : ''}" data-p="${p}">${p}</button>`;
-      }
-      pagesHtml += `<button class="page-btn" ${validPage === totalPages ? 'disabled' : ''} data-p="${validPage + 1}">Next &rarr;</button>`;
-      pagesHtml += `<span class="page-info">Page ${validPage} of ${totalPages} (${jobs.length} jobs)</span>`;
-
-      paginationContainer.innerHTML = pagesHtml;
-
-      paginationContainer.querySelectorAll(".page-btn[data-p]").forEach(btn => {
-        btn.addEventListener("click", () => {
-          const targetP = parseInt(btn.getAttribute("data-p"));
-          if (!isNaN(targetP) && targetP >= 1 && targetP <= totalPages) {
-            renderPaginatedJobs(jobs, containerId, paginationId, targetP, onPageChange, isMatchedTab);
-            container.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }
-        });
-      });
-    }
-  }
-}
-
-// Live Search Filters with Pagination Reset
-function filterMatchedJobs(e) {
-  const query = e.target.value.toLowerCase().trim();
-  filteredMatchedList = cachedMatchedJobs.filter(j => 
-    j.title.toLowerCase().includes(query) ||
-    (j.org && j.org.toLowerCase().includes(query)) ||
-    (j.source && j.source.toLowerCase().includes(query)) ||
-    (j.matched_keywords && j.matched_keywords.some(k => k.toLowerCase().includes(query))) ||
-    (j.eligibility_snippet && j.eligibility_snippet.toLowerCase().includes(query))
-  );
-  pageMatched = 1;
-  renderPaginatedJobs(filteredMatchedList, "matched-jobs-list", "matched-pagination", pageMatched, null, true);
-}
-
-function filterAllJobs(e) {
-  const query = e.target.value.toLowerCase().trim();
-  filteredAllList = cachedAllJobs.filter(j => 
-    j.title.toLowerCase().includes(query) ||
-    (j.org && j.org.toLowerCase().includes(query)) ||
-    (j.source && j.source.toLowerCase().includes(query)) ||
-    (j.qualifications_found && j.qualifications_found.some(k => k.toLowerCase().includes(query))) ||
-    (j.eligibility_snippet && j.eligibility_snippet.toLowerCase().includes(query))
-  );
-  pageAll = 1;
-  renderPaginatedJobs(filteredAllList, "all-jobs-list", "all-pagination", pageAll, null, false);
-}
-
-// Trigger Manual Scrape
-async function triggerScrapeNow() {
-  const btn = document.getElementById("btn-check-now");
-  const icon = btn.querySelector(".spin-icon");
-  const text = btn.querySelector(".btn-text");
-
-  btn.disabled = true;
-  icon.classList.add("active");
-  text.textContent = "Scanning...";
-
-  try {
-    const res = await authFetch("/api/scrape-now", { method: "POST" });
-    const data = await res.json();
-    if (data.success) {
-      playAlertChime();
-      text.textContent = "Updated!";
-      await loadJobs();
-      await loadStats();
-    } else {
-      text.textContent = "Failed";
-    }
-  } catch (err) {
-    text.textContent = "Error";
-    console.error(err);
-  } finally {
-    setTimeout(() => {
-      btn.disabled = false;
-      icon.classList.remove("active");
-      text.textContent = "Refresh";
-    }, 2000);
-  }
-}
-
-// Test Notification Dispatch
-async function testNotification() {
-  const btn = document.getElementById("btn-test-notification");
-  btn.disabled = true;
-  btn.textContent = "Sending Alert...";
-  playAlertChime();
-
-  try {
-    const res = await authFetch("/api/test-notification", { method: "POST" });
-    const data = await res.json();
-    alert(`🎯 Test alert dispatched to topic '${data.topic}'!\nCheck your phone lock screen via the ntfy app.`);
-  } catch (err) {
-    alert("Alert dispatch error: " + err.message);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = "Test Notification";
-  }
-}
-
-// Browser Push Notification Permission
-async function requestNotificationPermission() {
+function requestNotificationPermission() {
   if (!("Notification" in window)) {
     alert("This browser does not support desktop notifications.");
     return;
   }
-  const perm = await Notification.requestPermission();
-  if (perm === "granted") {
-    new Notification("🎯 Sarkari Job Alert", {
-      body: "Browser notifications enabled! You will now receive instant alerts.",
-      icon: "/icons/icon-192.png"
-    });
-    playAlertChime();
-  } else {
-    alert("Notification permission denied in browser settings.");
-  }
-}
-
-function listUnique(arr) {
-  return listUniqueFilter(arr);
-}
-
-function listUniqueFilter(arr) {
-  const seen = new Set();
-  const out = [];
-  for (const x of arr) {
-    if (x && !seen.has(x.toUpperCase())) {
-      seen.add(x.toUpperCase());
-      out.push(x);
+  Notification.requestPermission().then(permission => {
+    if (permission === "granted") {
+      new Notification("Sarkari Job Alert", {
+        body: "✓ Notifications enabled! You will be alerted when matching vacancies are found."
+      });
     }
+  });
+}
+
+function authFetch(url, options = {}) {
+  const headers = options.headers || {};
+  if (currentToken) {
+    headers["Authorization"] = `Bearer ${currentToken}`;
   }
-  return out;
+  options.headers = headers;
+  return fetch(url, options);
 }
 
 function escapeHtml(str) {
