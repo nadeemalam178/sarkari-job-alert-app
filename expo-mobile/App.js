@@ -5,13 +5,13 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  SafeAreaView,
   ActivityIndicator,
   Modal,
   BackHandler,
   Platform,
   StatusBar as RNStatusBar
 } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { WebView } from 'react-native-webview';
 
@@ -53,7 +53,8 @@ export default function App() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaProvider>
+      <SafeAreaView style={styles.safeArea}>
       <StatusBar style="auto" />
 
       {/* Main WebView Container */}
@@ -155,7 +156,8 @@ export default function App() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
 
