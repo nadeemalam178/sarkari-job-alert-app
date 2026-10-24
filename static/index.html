@@ -4,9 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   
-  <title>Sarkari Job Alert - Multi-Portal Qualification Job Tracker</title>
-  <meta name="description" content="Get personalized government job notifications aggregated from Sarkari Result, FreeJobAlert, and RojgarResult filtered by your qualifications.">
-  <meta name="keywords" content="sarkari result, freejobalert, rojgar result, qualification wise job, b.ed jobs, ctet vacancy, 10th pass job, graduate govt jobs">
+  <title>Sarkari Job Alert - Qualification-Wise Govt Jobs Tracker</title>
+  <meta name="description" content="Never miss a government job! Instant job alerts from Sarkari Result, FreeJobAlert, and RojgarResult filtered strictly by your qualification.">
+  <meta name="keywords" content="sarkari result, sarkari job alert, qualification wise job, b.ed jobs, ctet vacancy, 10th pass job, graduate govt jobs">
   <meta name="robots" content="index, follow">
   <link rel="canonical" href="https://sarkarijobalert.app/">
 
@@ -38,30 +38,27 @@
         </div>
         <div>
           <h1 class="brand-title">Sarkari Job Alert</h1>
-          <p class="brand-subtitle">Multi-Source Live Tracker (SarkariResult • FreeJobAlert • RojgarResult)</p>
+          <p class="brand-subtitle">Smart Qualification Matcher • Sarkari Result Preferred</p>
         </div>
       </div>
       
       <div class="header-actions">
-        <!-- User Pill or Login Trigger -->
+        <!-- Logged-in User Profile Pill -->
         <div id="user-header-profile" class="user-pill-container" style="display:none;">
           <div class="user-avatar" id="header-user-avatar">U</div>
           <div class="user-meta">
-            <span class="user-name" id="header-user-name">User</span>
-            <span class="user-state" id="header-user-state">All India</span>
+            <span class="user-name" id="header-user-name">Candidate</span>
+            <span class="user-state" id="header-user-level">Graduate</span>
           </div>
-          <button id="btn-logout" class="btn btn-sm btn-outline" title="Log out">Logout</button>
+          <button id="btn-edit-edu-header" class="btn btn-xs btn-outline" title="Change Qualifications">Edit Edu</button>
+          <button id="btn-logout" class="btn btn-xs btn-outline" title="Log out">Logout</button>
         </div>
 
-        <button id="btn-open-auth" class="btn btn-primary btn-sm">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-            <circle cx="12" cy="7" r="4"></circle>
-          </svg>
-          <span id="auth-btn-label">Create Profile / Login</span>
+        <button id="btn-open-login" class="btn btn-primary btn-sm">
+          <span>Log In / Sign Up</span>
         </button>
 
-        <button id="btn-check-now" class="btn btn-secondary btn-sm" title="Refresh all job sources">
+        <button id="btn-check-now" class="btn btn-secondary btn-sm" title="Refresh job portals">
           <svg class="spin-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
           </svg>
@@ -71,11 +68,11 @@
     </div>
   </header>
 
-  <!-- Active User Qualifications Banner -->
+  <!-- Active Qualification Banner -->
   <div id="user-quals-banner" class="quals-banner" style="display:none;">
     <div class="quals-banner-content">
       <div class="banner-title">
-        <span>🎯 Active Qualification Filters:</span>
+        <span>🎯 Your Qualifications:</span>
       </div>
       <div id="banner-chips" class="banner-chips"></div>
       <button id="btn-edit-quals-banner" class="btn btn-xs btn-outline">Change</button>
@@ -95,7 +92,7 @@
           </svg>
         </div>
         <div class="stat-info">
-          <span class="stat-label">Jobs Matching Your Degree</span>
+          <span class="stat-label">Matching Jobs For You</span>
           <h3 id="stat-matched-count" class="stat-value">0</h3>
         </div>
       </div>
@@ -108,7 +105,7 @@
           </svg>
         </div>
         <div class="stat-info">
-          <span class="stat-label">Total Jobs Scraped</span>
+          <span class="stat-label">Active Vacancies Tracked</span>
           <h3 id="stat-total-count" class="stat-value">0</h3>
         </div>
       </div>
@@ -121,8 +118,8 @@
           </svg>
         </div>
         <div class="stat-info">
-          <span class="stat-label">Portals Connected</span>
-          <h4 id="stat-sources-count" class="stat-value-sm">3 Portals Live</h4>
+          <span class="stat-label">Filtered Sources</span>
+          <h4 id="stat-sources-count" class="stat-value-sm">Sarkari Result Priority</h4>
         </div>
       </div>
     </section>
@@ -131,8 +128,8 @@
     <div class="sources-filter-row">
       <span class="filter-label">Filter by Portal:</span>
       <div class="filter-chips" id="source-filters">
-        <button class="source-chip active" data-source="all">All Sources (Aggregated)</button>
-        <button class="source-chip" data-source="SarkariResult">SarkariResult.com</button>
+        <button class="source-chip active" data-source="all">All Vacancies (Deduplicated)</button>
+        <button class="source-chip" data-source="SarkariResult">SarkariResult.com ★</button>
         <button class="source-chip" data-source="FreeJobAlert">FreeJobAlert.com</button>
         <button class="source-chip" data-source="RojgarResult">RojgarResult.com</button>
       </div>
@@ -145,13 +142,13 @@
         <span id="badge-matched" class="tab-badge">0</span>
       </button>
       <button class="tab-btn" data-tab="tab-all">
-        <span class="tab-icon">🌐</span> All Latest Jobs
+        <span class="tab-icon">🌐</span> All Active Govt Jobs
       </button>
-      <button class="tab-btn" data-tab="tab-profile">
-        <span class="tab-icon">👤</span> My Qualifications
+      <button class="tab-btn" data-tab="tab-education">
+        <span class="tab-icon">🎓</span> My Education & Qualifications
       </button>
       <button class="tab-btn" data-tab="tab-alerts">
-        <span class="tab-icon">🔔</span> Mobile Notifications
+        <span class="tab-icon">🔔</span> Phone Notifications
       </button>
     </nav>
 
@@ -160,7 +157,7 @@
       <div class="panel-header">
         <div>
           <h2 class="panel-title">Jobs Matching Your Qualifications</h2>
-          <p class="panel-desc">Only vacancies matching the educational qualifications saved in your profile appear here.</p>
+          <p class="panel-desc">Only verified recruitment openings matching your highest qualification and specific degrees appear here.</p>
         </div>
         <div class="search-box">
           <input type="text" id="matched-search-input" placeholder="Search by post, board, degree..." />
@@ -170,7 +167,7 @@
       <div id="matched-jobs-list" class="jobs-list">
         <div class="loading-state">
           <div class="spinner"></div>
-          <p>Scanning all job portals...</p>
+          <p>Scanning job vacancies...</p>
         </div>
       </div>
     </div>
@@ -179,8 +176,8 @@
     <div id="tab-all" class="tab-panel">
       <div class="panel-header">
         <div>
-          <h2 class="panel-title">All Latest Government Jobs</h2>
-          <p class="panel-desc">Aggregated feed from Sarkari Result, FreeJobAlert & Rojgar Result.</p>
+          <h2 class="panel-title">All Active Government Recruitment Openings</h2>
+          <p class="panel-desc">All non-job entries (results, admit cards, scholarships) are strictly excluded.</p>
         </div>
         <div class="search-box">
           <input type="text" id="all-search-input" placeholder="Search all jobs..." />
@@ -190,117 +187,133 @@
       <div id="all-jobs-list" class="jobs-list"></div>
     </div>
 
-    <!-- Tab 3: Profile & Qualifications Manager -->
-    <div id="tab-profile" class="tab-panel">
+    <!-- Tab 3: Education & Qualification Selector View -->
+    <div id="tab-education" class="tab-panel">
       <div class="panel-card">
         <div class="card-head">
-          <h2 class="panel-title">My Qualifications & Preferences</h2>
-          <p class="panel-desc">Update your educational degrees. Jobs will automatically re-filter in real-time!</p>
+          <h2 class="panel-title">Your Educational Qualifications Profile</h2>
+          <p class="panel-desc">Set your highest qualification level and pick your specific degrees. Jobs automatically re-filter in real-time!</p>
         </div>
 
-        <div class="form-group inline-profile-info">
-          <div class="input-half">
-            <label for="profile-name-input">Full Name:</label>
-            <input type="text" id="profile-name-input" placeholder="Your Name" />
-          </div>
-          <div class="input-half">
-            <label for="profile-state-select">Your State / Region:</label>
-            <select id="profile-state-select" class="custom-select">
-              <option value="All India">All India</option>
-              <option value="Bihar">Bihar</option>
-              <option value="Uttar Pradesh">Uttar Pradesh</option>
-              <option value="Rajasthan">Rajasthan</option>
-              <option value="Madhya Pradesh">Madhya Pradesh</option>
-              <option value="Delhi / NCR">Delhi / NCR</option>
-              <option value="Haryana">Haryana</option>
-              <option value="Jharkhand">Jharkhand</option>
-              <option value="Uttarakhand">Uttarakhand</option>
-              <option value="West Bengal">West Bengal</option>
-              <option value="Maharashtra">Maharashtra</option>
-              <option value="Other">Other State</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="qual-categories">
-          <!-- Teaching Category -->
-          <div class="qual-group">
-            <h4 class="group-title">👨‍🏫 Teaching & Education</h4>
-            <div class="checkbox-grid">
-              <label class="check-item"><input type="checkbox" name="qual" value="B.ED"> <span>B.Ed</span></label>
-              <label class="check-item"><input type="checkbox" name="qual" value="D.EL.ED / BTC"> <span>D.El.Ed / BTC</span></label>
-              <label class="check-item"><input type="checkbox" name="qual" value="CTET"> <span>CTET (Paper 1 / 2)</span></label>
-              <label class="check-item"><input type="checkbox" name="qual" value="STET"> <span>STET / State TET</span></label>
-              <label class="check-item"><input type="checkbox" name="qual" value="TEACHER"> <span>Teacher (PRT / TGT / PGT / Faculty)</span></label>
-            </div>
-          </div>
-
-          <!-- Graduation & Professional -->
-          <div class="qual-group">
-            <h4 class="group-title">🎓 Graduation & Professional Degrees</h4>
-            <div class="checkbox-grid">
-              <label class="check-item"><input type="checkbox" name="qual" value="GRADUATE"> <span>Graduate (Any Degree / BA / BSc / BCom)</span></label>
-              <label class="check-item"><input type="checkbox" name="qual" value="B.TECH / B.E"> <span>B.Tech / B.E (Engineering)</span></label>
-              <label class="check-item"><input type="checkbox" name="qual" value="BCA"> <span>BCA (Computer Applications)</span></label>
-              <label class="check-item"><input type="checkbox" name="qual" value="MCA"> <span>MCA (Master in Computer)</span></label>
-              <label class="check-item"><input type="checkbox" name="qual" value="POST GRADUATE"> <span>Post Graduate (MA / MSc / MCom / MBA / PGDM)</span></label>
-            </div>
-          </div>
-
-          <!-- School, ITI & Diploma -->
-          <div class="qual-group">
-            <h4 class="group-title">📜 School, Diploma & Technical</h4>
-            <div class="checkbox-grid">
-              <label class="check-item"><input type="checkbox" name="qual" value="10TH"> <span>10th / Matriculation (or 7th/8th)</span></label>
-              <label class="check-item"><input type="checkbox" name="qual" value="12TH / 10+2"> <span>12th / 10+2 / Intermediate</span></label>
-              <label class="check-item"><input type="checkbox" name="qual" value="ITI"> <span>ITI Certificate (Any Trade)</span></label>
-              <label class="check-item"><input type="checkbox" name="qual" value="DIPLOMA"> <span>Polytechnic Diploma / Pharmacy</span></label>
-            </div>
-          </div>
-
-          <!-- Medical & Defence -->
-          <div class="qual-group">
-            <h4 class="group-title">🛡️ Police, Defence, Medical & Others</h4>
-            <div class="checkbox-grid">
-              <label class="check-item"><input type="checkbox" name="qual" value="POLICE / DEFENCE"> <span>Police / Constable / SI / Defence</span></label>
-              <label class="check-item"><input type="checkbox" name="qual" value="NURSING / MEDICAL"> <span>Nursing (ANM / GNM / Pharmacist / MBBS)</span></label>
-              <label class="check-item"><input type="checkbox" name="qual" value="COMPUTER"> <span>Computer Operator / DEO / IT</span></label>
-            </div>
+        <!-- 1. Highest Qualification Selector -->
+        <div class="form-section">
+          <label class="section-label">1. What is your Highest Qualification?</label>
+          <div class="level-cards-grid" id="highest-level-grid">
+            <label class="level-card">
+              <input type="radio" name="highest-level" value="Post Graduate">
+              <div class="level-card-inner">
+                <span class="level-icon">🎓</span>
+                <span class="level-title">Post Graduate</span>
+                <span class="level-sub">Master / PG / MCA / MBA / M.Tech</span>
+              </div>
+            </label>
+            <label class="level-card">
+              <input type="radio" name="highest-level" value="Graduate" checked>
+              <div class="level-card-inner">
+                <span class="level-icon">🎓</span>
+                <span class="level-title">Graduate</span>
+                <span class="level-sub">Bachelor / BA / BSc / BCom / B.Tech</span>
+              </div>
+            </label>
+            <label class="level-card">
+              <input type="radio" name="highest-level" value="Diploma / ITI">
+              <div class="level-card-inner">
+                <span class="level-icon">⚙️</span>
+                <span class="level-title">Diploma / ITI</span>
+                <span class="level-sub">Polytechnic / ITI Trade Certificate</span>
+              </div>
+            </label>
+            <label class="level-card">
+              <input type="radio" name="highest-level" value="12th Pass">
+              <div class="level-card-inner">
+                <span class="level-icon">🏫</span>
+                <span class="level-title">12th Pass</span>
+                <span class="level-sub">Intermediate / 10+2 (PCM, PCB, Arts)</span>
+              </div>
+            </label>
+            <label class="level-card">
+              <input type="radio" name="highest-level" value="10th Pass">
+              <div class="level-card-inner">
+                <span class="level-icon">🎒</span>
+                <span class="level-title">10th Pass</span>
+                <span class="level-sub">Matriculation / High School</span>
+              </div>
+            </label>
           </div>
         </div>
 
-        <!-- Custom Keywords -->
-        <div class="custom-keywords-section">
-          <h4 class="group-title">🏷️ Custom Keywords</h4>
-          <p class="panel-desc">Add words to match (e.g. <code>Railway</code>, <code>Bank</code>, <code>Police</code>, <code>Civil</code>, <code>BPSC</code>):</p>
-          <div class="keyword-input-wrapper">
-            <input type="text" id="new-keyword-input" placeholder="Type keyword and press Enter..." />
-            <button id="btn-add-keyword" class="btn btn-secondary">Add</button>
+        <!-- 2. Search & Select Specific Degrees -->
+        <div class="form-section">
+          <label class="section-label">2. Search & Select Specific Degrees / Certifications:</label>
+          <div class="deg-search-wrapper">
+            <input type="text" id="deg-search-input" placeholder="🔍 Search from 70+ Indian qualifications (e.g. B.Ed, CTET, Civil, 12th PCM, MCA)..." autocomplete="off" />
+            <div id="deg-search-dropdown" class="deg-search-dropdown" style="display:none;"></div>
           </div>
-          <div id="keywords-tags-container" class="tags-container"></div>
+
+          <!-- Selected Degrees Pills -->
+          <div class="selected-degrees-container">
+            <span class="selected-label">Selected Degrees:</span>
+            <div id="selected-deg-chips" class="selected-chips-box">
+              <span class="hint-text">No specific degrees added yet. Use the search box above or browse categories below.</span>
+            </div>
+          </div>
+
+          <!-- Browse Categories Accordion -->
+          <div class="deg-categories-wrapper">
+            <div class="deg-cat-title">Or browse common qualifications by category:</div>
+            <div id="deg-categories-list" class="deg-categories-grid">
+              <!-- Dynamically populated from qualifications master -->
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Candidate Details & State -->
+        <div class="form-section">
+          <label class="section-label">3. State & Preferences:</label>
+          <div class="inline-profile-info">
+            <div class="input-half">
+              <label for="profile-name-input">Candidate Name:</label>
+              <input type="text" id="profile-name-input" placeholder="Your Name" />
+            </div>
+            <div class="input-half">
+              <label for="profile-state-select">Your State / Region:</label>
+              <select id="profile-state-select" class="custom-select">
+                <option value="All India">All India</option>
+                <option value="Bihar">Bihar</option>
+                <option value="Uttar Pradesh">Uttar Pradesh</option>
+                <option value="Rajasthan">Rajasthan</option>
+                <option value="Madhya Pradesh">Madhya Pradesh</option>
+                <option value="Delhi / NCR">Delhi / NCR</option>
+                <option value="Haryana">Haryana</option>
+                <option value="Jharkhand">Jharkhand</option>
+                <option value="Uttarakhand">Uttarakhand</option>
+                <option value="West Bengal">West Bengal</option>
+                <option value="Other">Other State</option>
+              </select>
+            </div>
+          </div>
         </div>
 
         <div class="card-footer">
-          <button id="btn-save-profile" class="btn btn-primary">Save Profile & Re-Filter Jobs</button>
-          <span id="save-profile-status" class="status-msg"></span>
+          <button id="btn-save-education" class="btn btn-primary btn-lg">Save Education & View My Jobs &rarr;</button>
+          <span id="save-edu-status" class="status-msg"></span>
         </div>
       </div>
     </div>
 
-    <!-- Tab 4: Push Notification Settings -->
+    <!-- Tab 4: Phone Push Notification Settings -->
     <div id="tab-alerts" class="tab-panel">
       <div class="panel-card">
         <div class="card-head">
-          <h2 class="panel-title">Mobile Push Notifications</h2>
-          <p class="panel-desc">Receive instant alerts on your phone lock screen whenever a matching job is scraped.</p>
+          <h2 class="panel-title">Mobile Push Notifications (Phone Lock Screen)</h2>
+          <p class="panel-desc">Get instant notifications on your phone lock screen whenever a new job matching your qualifications is posted.</p>
         </div>
 
-        <!-- Channel 1: Mobile Lockscreen Push via ntfy.sh -->
         <div class="setting-box highlight-box">
           <div class="setting-header">
             <div class="channel-badge free-badge">Recommended • 100% Free</div>
             <h3>📱 Instant Phone Lockscreen Push (via ntfy)</h3>
-            <p>Direct push notification to your phone lock screen with vibration and direct application link!</p>
+            <p>Direct push notification with vibration and direct application link on your phone!</p>
           </div>
 
           <div class="form-group">
@@ -318,11 +331,10 @@
           </div>
         </div>
 
-        <!-- Channel 2: Browser Web Push -->
         <div class="setting-box">
           <div class="setting-header">
-            <h3>💻 In-Browser Push Notification & Audio Chime</h3>
-            <p>Hear a chime and see desktop notifications while using the web app.</p>
+            <h3>💻 In-Browser Desktop Notification & Audio Chime</h3>
+            <p>Hear a chime and receive notifications while browsing on laptop/desktop.</p>
           </div>
           <div class="toggle-list">
             <button id="btn-request-perm" class="btn btn-sm btn-outline">Enable Browser Notifications</button>
@@ -334,85 +346,25 @@
   </main>
 
   <!-- ======================================================== -->
-  <!-- ONBOARDING & AUTH MODAL (Pops up on first visit)         -->
+  <!-- STEP 1: SIMPLE CLEAN LOGIN / SIGNUP MODAL               -->
   <!-- ======================================================== -->
   <div id="auth-modal" class="modal-overlay" style="display:none;">
-    <div class="modal-card">
+    <div class="modal-card modal-auth-card">
       <button class="modal-close" id="btn-close-modal">&times;</button>
       
       <div class="modal-header">
-        <div class="brand-icon-modal">🎓</div>
-        <h2 id="modal-heading">Quick Setup: Tell Us Your Qualifications</h2>
-        <p class="modal-sub">Create your quick profile so we can show jobs matching your exact degrees!</p>
+        <div class="brand-icon-modal">🔐</div>
+        <h2 id="auth-modal-heading">Log In to Your Account</h2>
+        <p class="modal-sub">Log in to view government jobs matching your qualification profile.</p>
       </div>
 
       <div class="modal-tabs">
-        <button class="modal-tab-btn active" id="btn-tab-register">🚀 New Profile (Quick Setup)</button>
-        <button class="modal-tab-btn" id="btn-tab-login">🔑 Existing User Login</button>
+        <button class="modal-tab-btn active" id="btn-tab-login">🔑 Log In</button>
+        <button class="modal-tab-btn" id="btn-tab-register">🚀 Create Account (10s)</button>
       </div>
 
-      <!-- Registration / Onboarding Form -->
-      <form id="form-register" class="auth-form">
-        <div class="form-group">
-          <label>Full Name:</label>
-          <input type="text" id="reg-name" placeholder="e.g. Nadeem Kumar" required />
-        </div>
-
-        <div class="form-row">
-          <div class="form-group half">
-            <label>Email Address:</label>
-            <input type="email" id="reg-email" placeholder="you@email.com" required />
-          </div>
-          <div class="form-group half">
-            <label>Password:</label>
-            <input type="password" id="reg-password" placeholder="Create a password" required />
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label>State / Region:</label>
-          <select id="reg-state" class="custom-select">
-            <option value="All India">All India</option>
-            <option value="Bihar">Bihar</option>
-            <option value="Uttar Pradesh">Uttar Pradesh</option>
-            <option value="Rajasthan">Rajasthan</option>
-            <option value="Madhya Pradesh">Madhya Pradesh</option>
-            <option value="Delhi / NCR">Delhi / NCR</option>
-            <option value="Haryana">Haryana</option>
-            <option value="Jharkhand">Jharkhand</option>
-            <option value="Uttarakhand">Uttarakhand</option>
-            <option value="Other">Other State</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label><strong>Select Your Qualifications (Check all that apply):</strong></label>
-          <div class="modal-quals-grid">
-            <label class="modal-chip"><input type="checkbox" name="reg-qual" value="B.ED"> <span>B.Ed</span></label>
-            <label class="modal-chip"><input type="checkbox" name="reg-qual" value="CTET"> <span>CTET</span></label>
-            <label class="modal-chip"><input type="checkbox" name="reg-qual" value="STET"> <span>STET / TET</span></label>
-            <label class="modal-chip"><input type="checkbox" name="reg-qual" value="GRADUATE" checked> <span>Graduate (Any Degree)</span></label>
-            <label class="modal-chip"><input type="checkbox" name="reg-qual" value="12TH / 10+2"> <span>12th Pass</span></label>
-            <label class="modal-chip"><input type="checkbox" name="reg-qual" value="10TH"> <span>10th Pass</span></label>
-            <label class="modal-chip"><input type="checkbox" name="reg-qual" value="B.TECH / B.E"> <span>B.Tech / B.E</span></label>
-            <label class="modal-chip"><input type="checkbox" name="reg-qual" value="BCA"> <span>BCA</span></label>
-            <label class="modal-chip"><input type="checkbox" name="reg-qual" value="MCA"> <span>MCA</span></label>
-            <label class="modal-chip"><input type="checkbox" name="reg-qual" value="POST GRADUATE"> <span>Post Graduate</span></label>
-            <label class="modal-chip"><input type="checkbox" name="reg-qual" value="ITI"> <span>ITI</span></label>
-            <label class="modal-chip"><input type="checkbox" name="reg-qual" value="DIPLOMA"> <span>Diploma</span></label>
-            <label class="modal-chip"><input type="checkbox" name="reg-qual" value="TEACHER"> <span>Teacher (PRT/TGT/PGT)</span></label>
-            <label class="modal-chip"><input type="checkbox" name="reg-qual" value="POLICE / DEFENCE"> <span>Police / Defence</span></label>
-          </div>
-        </div>
-
-        <button type="submit" id="btn-submit-register" class="btn btn-primary btn-block">
-          Save Profile & See Matching Jobs &rarr;
-        </button>
-        <div id="reg-error-msg" class="auth-error"></div>
-      </form>
-
-      <!-- Login Form -->
-      <form id="form-login" class="auth-form" style="display:none;">
+      <!-- Login Form (Simple & Clean) -->
+      <form id="form-login" class="auth-form">
         <div class="form-group">
           <label>Email Address:</label>
           <input type="email" id="login-email" placeholder="you@email.com" required />
@@ -428,16 +380,37 @@
         <div id="login-error-msg" class="auth-error"></div>
       </form>
 
+      <!-- Quick Sign Up Form -->
+      <form id="form-register" class="auth-form" style="display:none;">
+        <div class="form-group">
+          <label>Full Name:</label>
+          <input type="text" id="reg-name" placeholder="e.g. Nadeem Kumar" required />
+        </div>
+        <div class="form-group">
+          <label>Email Address:</label>
+          <input type="email" id="reg-email" placeholder="you@email.com" required />
+        </div>
+        <div class="form-group">
+          <label>Create Password:</label>
+          <input type="password" id="reg-password" placeholder="At least 6 characters" required />
+        </div>
+
+        <button type="submit" id="btn-submit-register" class="btn btn-primary btn-block">
+          Create Account & Choose Qualifications &rarr;
+        </button>
+        <div id="reg-error-msg" class="auth-error"></div>
+      </form>
+
       <div class="modal-footer-hint">
-        <a href="#" id="link-guest-browse">Skip for now & browse as guest</a>
+        <a href="#" id="link-guest-browse">Skip login & browse jobs as guest</a>
       </div>
     </div>
   </div>
 
   <footer class="app-footer">
     <div class="footer-container">
-      <p>Multi-Source Govt Job Alert System • SarkariResult • FreeJobAlert • RojgarResult</p>
-      <p class="disclaimer">Aggregated public notifications. Always verify with official commission advertisements before applying.</p>
+      <p>Sarkari Result Job Alert System • Multi-Portal Verified Recruitment Tracker</p>
+      <p class="disclaimer">Non-job notices (results, admit cards) are automatically filtered out. Primary priority given to Sarkari Result.</p>
     </div>
   </footer>
 

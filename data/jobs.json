@@ -1,61 +1,184 @@
 [
   {
-    "id": 49,
+    "id": 105,
     "source": "RojgarResult",
-    "url": "https://rojgarresult.com/nta-cuet-ug-2026/",
-    "title": "NTA CUET UG 2026 Result",
-    "org": "NTA CUET UG 2026 Result",
+    "url": "https://rojgarresult.com/bpsc-bihar-teacher-tre-4-0-2026/",
+    "title": "BPSC Bihar Teacher TRE 4.0 Online Form 2026",
+    "org": "BPSC Bihar Teacher TRE 4 Online Form 2026 for 33320 Post",
     "last_date": "Check Notification",
-    "eligibility_snippet": "Eligibility Criteria, Age Limit, and other requirements—the application link is also provided on RojgarResult",
+    "eligibility_snippet": "eligibility, post information, selection procedure, age limit, pay scale and all other information",
     "qualifications_found": [
-      "12TH / 10+2",
-      "GRADUATE",
       "TEACHER",
-      "POLICE / DEFENCE"
-    ],
-    "matched_keywords": [],
-    "is_matched": true,
-    "scraped_at": "2026-10-24 11:47",
-    "notified": false
-  },
-  {
-    "id": 48,
-    "source": "RojgarResult",
-    "url": "https://rojgarresult.com/ssc-delhi-police-hc-ministerial-2025/",
-    "title": "SSC Delhi Police Head Constable Ministerial PET & MT / DV Postponed Notice 2026",
-    "org": "SSC Delhi Police Head Constable Ministerial PET & MT / DV Postponed Notice 2026",
-    "last_date": "Check Notification",
-    "eligibility_snippet": "Eligibility 2025 Head Constable (Ministerial) in Delhi Police Examination, 2025 509 10+2 Intermediate Exam from Any Recognized Board in India",
-    "qualifications_found": [
-      "POLICE / DEFENCE",
-      "12TH / 10+2",
-      "TEACHER"
-    ],
-    "matched_keywords": [],
-    "is_matched": true,
-    "scraped_at": "2026-10-24 11:47",
-    "notified": false
-  },
-  {
-    "id": 47,
-    "source": "RojgarResult",
-    "url": "https://rojgarresult.com/up-scholarship-2026/",
-    "title": "UP Scholarship Online Form 2026 – Apply Now",
-    "org": "UP Scholarship Online Form 2026",
-    "last_date": "Check Notification",
-    "eligibility_snippet": "Eligibility and other information is available in the official notification whose link is given on Rojgar Result | More Other Important Information Such as Admission | Scholarship | Result | Admit Card | Answer Key | Syllabus | Job Jhalak | Sarkari Yojna also provided on RojgarResult",
-    "qualifications_found": [
-      "10TH",
       "12TH / 10+2",
       "DIPLOMA",
       "GRADUATE",
       "POST GRADUATE",
+      "B.ED",
+      "D.EL.ED / BTC",
+      "CTET",
+      "STET",
+      "POLICE / DEFENCE",
+      "COMPUTER"
+    ],
+    "matched_keywords": [],
+    "is_matched": true,
+    "scraped_at": "2026-10-24 12:11",
+    "notified": false
+  },
+  {
+    "id": 100,
+    "source": "FreeJobAlert",
+    "url": "https://www.freejobalert.com/articles/nabcons-associate-project-consultant-recruitment-2026-apply-online-3074502",
+    "title": "NABCONS - Associate Project Consultant – 2 Posts",
+    "org": "NABCONS",
+    "last_date": "25-10-2026",
+    "eligibility_snippet": "Qualification: Any Graduate, B.Tech/B.E, MBA/PGDM | Post Date: 20/10/2026",
+    "qualifications_found": [
+      "GRADUATE",
+      "B.TECH / B.E",
+      "POST GRADUATE"
+    ],
+    "matched_keywords": [],
+    "is_matched": true,
+    "scraped_at": "2026-10-24 12:10",
+    "notified": false
+  },
+  {
+    "id": 99,
+    "source": "FreeJobAlert",
+    "url": "https://www.freejobalert.com/articles/exim-bank-business-development-officer-recruitment-2026-apply-online-for-12-posts-3067808",
+    "title": "Exim Bank - Business Development Officer – 12 Posts",
+    "org": "Exim Bank",
+    "last_date": "25-10-2026",
+    "eligibility_snippet": "Qualification: Any Post Graduate, MBA/PGDM | Post Date: 21/10/2026",
+    "qualifications_found": [
+      "GRADUATE",
+      "POST GRADUATE"
+    ],
+    "matched_keywords": [],
+    "is_matched": true,
+    "scraped_at": "2026-10-24 12:10",
+    "notified": false
+  },
+  {
+    "id": 98,
+    "source": "FreeJobAlert",
+    "url": "https://www.freejobalert.com/articles/nabfins-lead-auditor-recruitment-2026-apply-online-3074748",
+    "title": "NABFINS - Lead Auditor – 1 Posts",
+    "org": "NABFINS",
+    "last_date": "27-10-2026",
+    "eligibility_snippet": "Qualification: Other | Post Date: 21/10/2026",
+    "qualifications_found": [],
+    "matched_keywords": [],
+    "is_matched": false,
+    "scraped_at": "2026-10-24 12:10",
+    "notified": false
+  },
+  {
+    "id": 97,
+    "source": "FreeJobAlert",
+    "url": "https://www.freejobalert.com/articles/rbi-mumbai-pharmacist-recruitment-2026-3073857",
+    "title": "RBI Mumbai - Pharmacist – 22 Posts",
+    "org": "RBI Mumbai",
+    "last_date": "03-11-2026",
+    "eligibility_snippet": "Qualification: B.Pharma, D.Pharm | Post Date: 22/10/2026",
+    "qualifications_found": [
+      "DIPLOMA",
+      "GRADUATE",
+      "NURSING / MEDICAL"
+    ],
+    "matched_keywords": [],
+    "is_matched": true,
+    "scraped_at": "2026-10-24 12:10",
+    "notified": false
+  },
+  {
+    "id": 96,
+    "source": "FreeJobAlert",
+    "url": "https://www.freejobalert.com/articles/tmb-bank-deputy-chief-financial-officer-recruitment-2026-apply-online-3075412",
+    "title": "TMB Bank - Deputy Chief Financial Officer – 1 Posts",
+    "org": "TMB Bank",
+    "last_date": "06-11-2026",
+    "eligibility_snippet": "Qualification: CA | Post Date: 23/10/2026",
+    "qualifications_found": [
+      "GRADUATE"
+    ],
+    "matched_keywords": [],
+    "is_matched": true,
+    "scraped_at": "2026-10-24 12:10",
+    "notified": false
+  },
+  {
+    "id": 95,
+    "source": "SarkariResult",
+    "url": "https://www.sarkariresult.com/2026/lic-hfl-apprentice-oct26/",
+    "title": "LIC HFL Apprentice Online Online Form 2026 for 232 Post | Last Date : 01/11/2026",
+    "org": "LIC Housing Finance Limited Apprentice Recruitment 2026 Apply Online for 232 Post",
+    "last_date": "01/11/2026",
+    "eligibility_snippet": "Post Name Total Post LIC HFL Apprentices Exam Eligibility | LIC HFL Apprentice 232 Bachelor Degree in Any Stream from Any Recognized University in India. More Eligibility Details Read the Notification |",
+    "qualifications_found": [
+      "GRADUATE",
+      "POLICE / DEFENCE"
+    ],
+    "matched_keywords": [],
+    "is_matched": true,
+    "scraped_at": "2026-10-24 12:10",
+    "notified": false
+  },
+  {
+    "id": 94,
+    "source": "SarkariResult",
+    "url": "https://www.sarkariresult.com/2026/upessc-up-tgt-07-2026/",
+    "title": "UPESSC UP TGT Online Form 2026 | Last Date : 23/11/2026",
+    "org": "Uttar Pradesh UPESSC UP Trained Graduate Teacher (TGT Teacher) Recruitment 2026 :  Apply Online Form 2026 for 17735 Post",
+    "last_date": "23/11/2026",
+    "eligibility_snippet": "Short Information Uttar Pradesh Education Service Selection Commission (UPESSC) has released the Trained Graduate Teacher TGT Advt No 07/2026 Notification. Those Candidates are Interested to the Following Exam Can Apply Online from 24/10/2026 to 23/11/2026 .candidates should read the UP TGT Teacher 2026 information brochure for all the information related to the UP PGT Teacher exam like syllabus, eligibility, age limit, fees, information and other types of information and then apply. | Post Name General EWS OBC SC ST Total UPESS UP TGT Eligibility 2026 | Trained Graduate Teacher TGT (Balak) 6057 2660 4069 3394 13 16193 Bachelor / Master Degree with Related Subject. B.Ed Exam Passed Class 6-8 TET Exam Passed For Subject Wise Eligibility Details Read the Notification. | Subject Wise Eligibil",
+    "qualifications_found": [
+      "GRADUATE",
+      "POST GRADUATE",
+      "B.ED",
       "TEACHER",
       "POLICE / DEFENCE"
     ],
     "matched_keywords": [],
     "is_matched": true,
-    "scraped_at": "2026-10-24 11:47",
+    "scraped_at": "2026-10-24 12:10",
+    "notified": false
+  },
+  {
+    "id": 93,
+    "source": "SarkariResult",
+    "url": "https://www.sarkariresult.com/2026/up-ecce-educator-kanpur-oct26/",
+    "title": "UP ECCE Educator Kanpur Nagar Online Form 2026 | Last Date : 30/11/2026",
+    "org": "Uttar Pradesh UP Basic Education Kanpur Nagar ECCE Educator Outsourcing Recruitment 2026 Apply Online For 100 Post",
+    "last_date": "22/10/2026",
+    "eligibility_snippet": "Short Information UP Rojgar Sangam (Sewayojan) Portal has released a new Outsourcing Recruitment 2026 for UP Kanpur Nagar District ECCE Education in the उत्तर प्रदेश बेसिक शिक्षा विभाग. Candidates who are interested in this outsourcing vacancy and are registered on the UP Rojgar Sangam Portal can apply online from 22 October 2026 to 30 October 2026. Read the official notification for eligibility, vacancy details, age limit, monthly remuneration, selection process, and other important information before applying. | Post Name Total Post UP Kanpur Nagar ECCE Educator Eligibility Details | UP ECCE Educator District Kanpur Nagar 100 Graduation from a recognized university with minimum 50% marks and Home Science as a major subject OR 2 Years Diploma in DPSE. 5% marks relaxation in minimum marks ",
+    "qualifications_found": [
+      "DIPLOMA",
+      "GRADUATE",
+      "POLICE / DEFENCE"
+    ],
+    "matched_keywords": [],
+    "is_matched": true,
+    "scraped_at": "2026-10-24 12:10",
+    "notified": false
+  },
+  {
+    "id": 92,
+    "source": "SarkariResult",
+    "url": "https://www.sarkariresult.com/2026/up-ecce-educator-fatehpur-oct26/",
+    "title": "UP ECCE Educator Fatehpur Online Form 2026 | Last Date : 07/11/2026",
+    "org": "Uttar Pradesh UP Basic Education Fatehpur ECCE Educator Outsourcing Recruitment 2026 Apply Online For 140 Post",
+    "last_date": "22/10/2026",
+    "eligibility_snippet": "Short Information UP Rojgar Sangam (Sewayojan) Portal has released a new Outsourcing Recruitment 2026 for UP Fatehpur District ECCE Education in the उत्तर प्रदेश बेसिक शिक्षा विभाग. Candidates who are interested in this outsourcing vacancy and are registered on the UP Rojgar Sangam Portal can apply online from 22 October 2026 to 07 November 2026. Read the official notification for eligibility, vacancy details, age limit, monthly remuneration, selection process, and other important information before applying. | Post Name Total Post UP Fatehpur ECCE Educator Eligibility Details | UP ECCE Educator District Fatehpur 140 Graduation from a recognized university with minimum 50% marks and Home Science as a major subject OR 2 Years Diploma in DPSE. 5% marks relaxation in minimum marks for reserve",
+    "qualifications_found": [
+      "DIPLOMA",
+      "GRADUATE",
+      "POLICE / DEFENCE"
+    ],
+    "matched_keywords": [],
+    "is_matched": true,
+    "scraped_at": "2026-10-24 12:10",
     "notified": false
   },
   {

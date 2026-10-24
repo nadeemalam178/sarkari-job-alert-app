@@ -4,8 +4,10 @@ let currentToken = localStorage.getItem("sarkari_auth_token") || null;
 let activeSourceFilter = "all";
 let cachedMatchedJobs = [];
 let cachedAllJobs = [];
+let masterQualifications = [];
+let selectedDegrees = []; // Codes of degrees user selected, e.g. ['B.ED', 'CTET', 'GRADUATE']
 
-// Audio Chime (Web Audio API)
+// Web Audio API Chime
 function playAlertChime() {
   try {
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -42,11 +44,12 @@ async function authFetch(url, options = {}) {
   return fetch(url, options);
 }
 
-// Document Ready Initialization
+// DOM Ready
 document.addEventListener("DOMContentLoaded", async () => {
   initTabs();
-  initModal();
+  initLoginModal();
   initSourceFilters();
+  await loadQualificationsMaster();
 
   // Try authenticating existing session
   await checkAuthStatus();
@@ -57,20 +60,16 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Event Listeners
   document.getElementById("btn-check-now").addEventListener("click", triggerScrapeNow);
-  document.getElementById("btn-save-profile").addEventListener("click", saveProfileSettings);
+  document.getElementById("btn-save-education").addEventListener("click", saveEducationProfile);
   document.getElementById("btn-test-notification").addEventListener("click", testNotification);
   document.getElementById("btn-request-perm").addEventListener("click", requestNotificationPermission);
   document.getElementById("btn-logout").addEventListener("click", handleLogout);
-  document.getElementById("btn-open-auth").addEventListener("click", () => openModal('register'));
-  document.getElementById("btn-edit-quals-banner").addEventListener("click", () => {
-    switchTab("tab-profile");
-  });
+  document.getElementById("btn-open-login").addEventListener("click", () => openLoginModal('login'));
+  document.getElementById("btn-edit-edu-header").addEventListener("click", () => switchTab("tab-education"));
+  document.getElementById("btn-edit-quals-banner").addEventListener("click", () => switchTab("tab-education"));
 
-  // Custom Keywords
-  document.getElementById("btn-add-keyword").addEventListener("click", addCustomKeyword);
-  document.getElementById("new-keyword-input").addEventListener("keypress", (e) => {
-    if (e.key === "Enter") addCustomKeyword();
-  });
+  // Degree Search & Autosuggest
+  initDegreeSearch();
 
   // Search Inputs
   document.getElementById("matched-search-input").addEventListener("input", filterMatchedJobs);
@@ -109,6 +108,172 @@ function initSourceFilters() {
   });
 }
 
+// --- Load Master Qualifications Catalog ---
+async function loadQualificationsMaster() {
+  try {
+    const res = await fetch("/api/qualifications-master");
+    const data = await res.json();
+    if (data.success && data.qualifications) {
+      masterQualifications = data.qualifications;
+      renderQualificationsCategories();
+    }
+  } catch (err) {
+    console.error("Failed loading master qualifications:", err);
+  }
+}
+
+// Render Browse Categories Accordion
+function renderQualificationsCategories() {
+  const container = document.getElementById("deg-categories-list");
+  if (!container) return;
+  container.innerHTML = "";
+
+  const groups = {};
+  masterQualifications.forEach(q => {
+    if (!groups[q.category]) groups[q.category] = [];
+    groups[q.category].push(q);
+  });
+
+  for (const [catName, list] of Object.entries(groups)) {
+    const catBox = document.createElement("div");
+    catBox.className = "deg-cat-box";
+
+    const header = document.createElement("div");
+    header.className = "deg-cat-header";
+    header.textContent = catName;
+    catBox.appendChild(header);
+
+    const chipsContainer = document.createElement("div");
+    chipsContainer.className = "deg-cat-chips";
+
+    list.forEach(item => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = `quick-add-chip ${selectedDegrees.includes(item.code) ? 'added' : ''}`;
+      btn.textContent = `+ ${item.code}`;
+      btn.title = item.name;
+      btn.addEventListener("click", () => {
+        toggleDegreeSelection(item.code);
+      });
+      chipsContainer.appendChild(btn);
+    });
+
+    catBox.appendChild(chipsContainer);
+    container.appendChild(catBox);
+  }
+}
+
+// --- Degree Search & Autosuggest ---
+function initDegreeSearch() {
+  const searchInput = document.getElementById("deg-search-input");
+  const dropdown = document.getElementById("deg-search-dropdown");
+
+  searchInput.addEventListener("input", (e) => {
+    const query = e.target.value.toLowerCase().trim();
+    if (!query) {
+      dropdown.style.display = "none";
+      return;
+    }
+
+    const matches = masterQualifications.filter(item => 
+      item.code.toLowerCase().includes(query) ||
+      item.name.toLowerCase().includes(query) ||
+      item.category.toLowerCase().includes(query)
+    );
+
+    if (matches.length === 0) {
+      dropdown.innerHTML = `<div class="deg-dropdown-item" style="color:var(--text-dim); cursor:default;">No matching Indian qualification found. Press Enter to add custom keyword.</div>`;
+      dropdown.style.display = "block";
+      return;
+    }
+
+    dropdown.innerHTML = matches.slice(0, 8).map(m => `
+      <div class="deg-dropdown-item" data-code="${m.code}">
+        <div>
+          <strong>${escapeHtml(m.code)}</strong> - <span style="color:#cbd5e1;">${escapeHtml(m.name)}</span>
+        </div>
+        <span class="deg-item-cat">${escapeHtml(m.category)}</span>
+      </div>
+    `).join("");
+    dropdown.style.display = "block";
+
+    dropdown.querySelectorAll(".deg-dropdown-item[data-code]").forEach(el => {
+      el.addEventListener("click", () => {
+        const code = el.getAttribute("data-code");
+        addDegreeSelection(code);
+        searchInput.value = "";
+        dropdown.style.display = "none";
+      });
+    });
+  });
+
+  // Handle custom keyword on Enter
+  searchInput.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") {
+      const val = searchInput.value.trim().toUpperCase();
+      if (val) {
+        addDegreeSelection(val);
+        searchInput.value = "";
+        dropdown.style.display = "none";
+      }
+    }
+  });
+
+  // Close dropdown on outside click
+  document.addEventListener("click", (e) => {
+    if (!searchInput.contains(e.target) && !dropdown.contains(e.target)) {
+      dropdown.style.display = "none";
+    }
+  });
+}
+
+function addDegreeSelection(code) {
+  if (!selectedDegrees.includes(code)) {
+    selectedDegrees.push(code);
+    renderSelectedDegreesChips();
+    renderQualificationsCategories();
+  }
+}
+
+function removeDegreeSelection(code) {
+  selectedDegrees = selectedDegrees.filter(c => c !== code);
+  renderSelectedDegreesChips();
+  renderQualificationsCategories();
+}
+
+function toggleDegreeSelection(code) {
+  if (selectedDegrees.includes(code)) {
+    removeDegreeSelection(code);
+  } else {
+    addDegreeSelection(code);
+  }
+}
+
+function renderSelectedDegreesChips() {
+  const container = document.getElementById("selected-deg-chips");
+  if (!container) return;
+
+  if (selectedDegrees.length === 0) {
+    container.innerHTML = `<span class="hint-text">No specific degrees added yet. Use search or quick chips above.</span>`;
+    return;
+  }
+
+  container.innerHTML = selectedDegrees.map(code => `
+    <span class="deg-chip">
+      ${escapeHtml(code)}
+      <span class="deg-chip-remove" data-code="${escapeHtml(code)}">&times;</span>
+    </span>
+  `).join("");
+
+  container.querySelectorAll(".deg-chip-remove").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const code = btn.getAttribute("data-code");
+      removeDegreeSelection(code);
+    });
+  });
+}
+
 // --- Auth & Session ---
 async function checkAuthStatus() {
   if (currentToken) {
@@ -124,40 +289,50 @@ async function checkAuthStatus() {
     }
   }
 
-  // Not authenticated: Prompt onboarding modal on first visit
+  // Not authenticated: Prompt simple login modal on first visit
   const guestDismissed = sessionStorage.getItem("sarkari_guest_dismissed");
   if (!guestDismissed) {
-    openModal('register');
+    openLoginModal('login');
   }
 }
 
 function setLoggedInUser(user) {
   currentUser = user;
   document.getElementById("user-header-profile").style.display = "flex";
-  document.getElementById("btn-open-auth").style.display = "none";
+  document.getElementById("btn-open-login").style.display = "none";
   document.getElementById("header-user-name").textContent = user.name;
-  document.getElementById("header-user-state").textContent = user.state || "All India";
+  document.getElementById("header-user-level").textContent = user.highest_qualification || "Graduate";
   document.getElementById("header-user-avatar").textContent = (user.name || "U")[0].toUpperCase();
 
   // Populate Banner
   const banner = document.getElementById("user-quals-banner");
   const chipsContainer = document.getElementById("banner-chips");
   chipsContainer.innerHTML = "";
-  (user.qualifications || []).forEach(q => {
+  
+  const displayChips = [user.highest_qualification || "Graduate", ...(user.qualifications || [])];
+  const uniqueChips = listUnique(displayChips);
+
+  uniqueChips.forEach(q => {
     const chip = document.createElement("span");
     chip.className = "banner-chip";
     chip.textContent = q;
     chipsContainer.appendChild(chip);
   });
-  banner.style.display = (user.qualifications && user.qualifications.length > 0) ? "block" : "none";
+  banner.style.display = "block";
 
-  // Populate Profile Form
+  // Populate Education Form
   document.getElementById("profile-name-input").value = user.name || "";
   document.getElementById("profile-state-select").value = user.state || "All India";
-  document.querySelectorAll("input[name='qual']").forEach(cb => {
-    cb.checked = (user.qualifications || []).includes(cb.value);
-  });
-  renderKeywordTags();
+  
+  // Set highest level radio
+  const levelVal = user.highest_qualification || "Graduate";
+  const radio = document.querySelector(`input[name="highest-level"][value="${levelVal}"]`);
+  if (radio) radio.checked = true;
+
+  // Set selected degrees
+  selectedDegrees = user.qualifications || ["GRADUATE"];
+  renderSelectedDegreesChips();
+  renderQualificationsCategories();
 
   // Populate Alert Settings
   const topic = user.ntfy_topic || "sarkari_job_alert_user";
@@ -176,15 +351,17 @@ async function handleLogout() {
   currentToken = null;
   currentUser = null;
   document.getElementById("user-header-profile").style.display = "none";
-  document.getElementById("btn-open-auth").style.display = "inline-flex";
+  document.getElementById("btn-open-login").style.display = "inline-flex";
   document.getElementById("user-quals-banner").style.display = "none";
-  openModal('login');
+  selectedDegrees = ["GRADUATE"];
+  renderSelectedDegreesChips();
+  openLoginModal('login');
   loadJobs();
   loadStats();
 }
 
-// --- Onboarding Modal Handlers ---
-function initModal() {
+// --- Login & Registration Modal ---
+function initLoginModal() {
   const modal = document.getElementById("auth-modal");
   document.getElementById("btn-close-modal").addEventListener("click", () => {
     modal.style.display = "none";
@@ -196,65 +373,26 @@ function initModal() {
     sessionStorage.setItem("sarkari_guest_dismissed", "true");
   });
 
-  const btnTabReg = document.getElementById("btn-tab-register");
   const btnTabLogin = document.getElementById("btn-tab-login");
-  const formReg = document.getElementById("form-register");
+  const btnTabReg = document.getElementById("btn-tab-register");
   const formLogin = document.getElementById("form-login");
-  const heading = document.getElementById("modal-heading");
+  const formReg = document.getElementById("form-register");
+  const heading = document.getElementById("auth-modal-heading");
+
+  btnTabLogin.addEventListener("click", () => {
+    btnTabLogin.classList.add("active");
+    btnTabReg.classList.remove("active");
+    formLogin.style.display = "block";
+    formReg.style.display = "none";
+    heading.textContent = "Log In to Your Account";
+  });
 
   btnTabReg.addEventListener("click", () => {
     btnTabReg.classList.add("active");
     btnTabLogin.classList.remove("active");
     formReg.style.display = "block";
     formLogin.style.display = "none";
-    heading.textContent = "Quick Setup: Tell Us Your Qualifications";
-  });
-
-  btnTabLogin.addEventListener("click", () => {
-    btnTabLogin.classList.add("active");
-    btnTabReg.classList.remove("active");
-    formReg.style.display = "none";
-    formLogin.style.display = "block";
-    heading.textContent = "Log In to Your Profile";
-  });
-
-  // Handle Register Submit
-  formReg.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const name = document.getElementById("reg-name").value.trim();
-    const email = document.getElementById("reg-email").value.trim();
-    const password = document.getElementById("reg-password").value;
-    const state = document.getElementById("reg-state").value;
-    const quals = [];
-    document.querySelectorAll("input[name='reg-qual']:checked").forEach(cb => quals.push(cb.value));
-
-    const errEl = document.getElementById("reg-error-msg");
-    errEl.textContent = "";
-
-    try {
-      const res = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name, email, password, state,
-          qualifications: quals.length > 0 ? quals : ["GRADUATE"]
-        })
-      });
-      const data = await res.json();
-      if (data.success) {
-        currentToken = data.token;
-        localStorage.setItem("sarkari_auth_token", data.token);
-        setLoggedInUser(data.user);
-        modal.style.display = "none";
-        playAlertChime();
-        await loadJobs();
-        await loadStats();
-      } else {
-        errEl.textContent = data.error || "Registration failed";
-      }
-    } catch (err) {
-      errEl.textContent = err.message;
-    }
+    heading.textContent = "Create Candidate Account";
   });
 
   // Handle Login Submit
@@ -287,15 +425,99 @@ function initModal() {
       errEl.textContent = err.message;
     }
   });
+
+  // Handle Register Submit
+  formReg.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const name = document.getElementById("reg-name").value.trim();
+    const email = document.getElementById("reg-email").value.trim();
+    const password = document.getElementById("reg-password").value;
+    const errEl = document.getElementById("reg-error-msg");
+    errEl.textContent = "";
+
+    try {
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name, email, password,
+          highest_qualification: "Graduate",
+          qualifications: ["GRADUATE"]
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        currentToken = data.token;
+        localStorage.setItem("sarkari_auth_token", data.token);
+        setLoggedInUser(data.user);
+        modal.style.display = "none";
+        playAlertChime();
+        
+        // Immediate Step 2: Switch straight to "My Education" tab so they set their degrees!
+        switchTab("tab-education");
+        alert(`Welcome, ${name}! Please set your Highest Qualification and Specific Degrees below.`);
+        await loadJobs();
+        await loadStats();
+      } else {
+        errEl.textContent = data.error || "Registration failed";
+      }
+    } catch (err) {
+      errEl.textContent = err.message;
+    }
+  });
 }
 
-function openModal(tab = 'register') {
+function openLoginModal(tab = 'login') {
   const modal = document.getElementById("auth-modal");
   modal.style.display = "flex";
-  if (tab === 'register') {
-    document.getElementById("btn-tab-register").click();
-  } else {
+  if (tab === 'login') {
     document.getElementById("btn-tab-login").click();
+  } else {
+    document.getElementById("btn-tab-register").click();
+  }
+}
+
+// --- Save Education Profile ---
+async function saveEducationProfile() {
+  const name = document.getElementById("profile-name-input").value.trim();
+  const state = document.getElementById("profile-state-select").value;
+  const levelEl = document.querySelector('input[name="highest-level"]:checked');
+  const highestLevel = levelEl ? levelEl.value : "Graduate";
+
+  const statusEl = document.getElementById("save-edu-status");
+  statusEl.textContent = "Updating education profile & matching jobs...";
+  statusEl.className = "status-msg";
+
+  if (!currentToken) {
+    openLoginModal('login');
+    return;
+  }
+
+  try {
+    const res = await authFetch("/api/auth/profile", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name,
+        state,
+        highest_qualification: highestLevel,
+        qualifications: selectedDegrees.length > 0 ? selectedDegrees : ["GRADUATE"]
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      setLoggedInUser(data.user);
+      statusEl.textContent = "Education profile saved! Showing matching jobs.";
+      statusEl.classList.add("status-success");
+      playAlertChime();
+      await loadJobs();
+      await loadStats();
+      setTimeout(() => {
+        switchTab("tab-matched");
+      }, 700);
+    }
+  } catch (err) {
+    statusEl.textContent = "Error: " + err.message;
   }
 }
 
@@ -331,15 +553,13 @@ async function loadStats() {
     if (data.success && data.stats) {
       document.getElementById("stat-matched-count").textContent = data.stats.total_matched || 0;
       document.getElementById("stat-total-count").textContent = data.stats.total_checked || 0;
-      const srcCount = Object.keys(data.stats.sources || {}).length || 3;
-      document.getElementById("stat-sources-count").textContent = `${srcCount} Portals Live`;
     }
   } catch (err) {
     console.error("Failed to load stats:", err);
   }
 }
 
-// Render Job Cards with Source Badges
+// Render Job Cards with Sarkari Result Priority Badges
 function renderJobsList(jobs, containerId, isMatchedTab) {
   const container = document.getElementById(containerId);
   if (!container) return;
@@ -347,16 +567,15 @@ function renderJobsList(jobs, containerId, isMatchedTab) {
   if (jobs.length === 0) {
     container.innerHTML = `
       <div class="empty-state">
-        <p>No jobs found for the selected criteria.</p>
-        ${isMatchedTab ? '<p style="margin-top:6px; font-size:0.85rem;">Tip: Open <strong>My Qualifications</strong> tab to select degrees or add custom keywords!</p>' : ''}
+        <p>No active vacancies matching your criteria.</p>
+        ${isMatchedTab ? '<p style="margin-top:6px; font-size:0.85rem;">Tip: Open <strong>My Education & Qualifications</strong> tab to add degrees or change level!</p>' : ''}
       </div>
     `;
     return;
   }
 
   container.innerHTML = jobs.map(job => {
-    // Determine Source Badge style
-    let sourceBadge = `<span class="source-badge source-sr">SarkariResult</span>`;
+    let sourceBadge = `<span class="source-badge source-sr">SarkariResult ★</span>`;
     if (job.source === "FreeJobAlert") {
       sourceBadge = `<span class="source-badge source-fja">FreeJobAlert</span>`;
     } else if (job.source === "RojgarResult") {
@@ -389,14 +608,14 @@ function renderJobsList(jobs, containerId, isMatchedTab) {
         </div>
 
         <div class="job-snippet">
-          ${escapeHtml(job.eligibility_snippet || "Check official source notification for details.")}
+          ${escapeHtml(job.eligibility_snippet || "Check official advertisement on source for eligibility details.")}
         </div>
 
         <div class="job-card-bottom">
           <div class="job-date-info">
             📅 Last Date: <span class="date-val">${escapeHtml(job.last_date || "Refer notification")}</span>
           </div>
-          <span style="font-size:0.75rem; color:var(--text-dim);">Portal: ${escapeHtml(job.source || "SarkariResult")}</span>
+          <span style="font-size:0.75rem; color:var(--text-dim);">Source: ${escapeHtml(job.source || "SarkariResult")}</span>
         </div>
       </article>
     `;
@@ -428,85 +647,6 @@ function filterAllJobs(e) {
   renderJobsList(filtered, "all-jobs-list", false);
 }
 
-// Custom Keywords
-function renderKeywordTags() {
-  const container = document.getElementById("keywords-tags-container");
-  container.innerHTML = "";
-  const keywords = (currentUser && currentUser.custom_keywords) ? currentUser.custom_keywords : [];
-  keywords.forEach((kw, index) => {
-    const tag = document.createElement("span");
-    tag.className = "keyword-tag";
-    tag.innerHTML = `${kw} <span class="remove-tag" data-index="${index}">&times;</span>`;
-    container.appendChild(tag);
-  });
-
-  container.querySelectorAll(".remove-tag").forEach(btn => {
-    btn.addEventListener("click", (e) => {
-      const idx = parseInt(e.target.getAttribute("data-index"));
-      if (currentUser && currentUser.custom_keywords) {
-        currentUser.custom_keywords.splice(idx, 1);
-        renderKeywordTags();
-      }
-    });
-  });
-}
-
-function addCustomKeyword() {
-  const input = document.getElementById("new-keyword-input");
-  const val = input.value.trim().toUpperCase();
-  if (val) {
-    if (!currentUser) currentUser = { custom_keywords: [] };
-    if (!currentUser.custom_keywords) currentUser.custom_keywords = [];
-    if (!currentUser.custom_keywords.includes(val)) {
-      currentUser.custom_keywords.push(val);
-      renderKeywordTags();
-      input.value = "";
-    }
-  }
-}
-
-// Save Profile & Re-filter
-async function saveProfileSettings() {
-  const name = document.getElementById("profile-name-input").value.trim();
-  const state = document.getElementById("profile-state-select").value;
-  const quals = [];
-  document.querySelectorAll("input[name='qual']:checked").forEach(cb => quals.push(cb.value));
-
-  const statusEl = document.getElementById("save-profile-status");
-  statusEl.textContent = "Updating profile & re-matching jobs...";
-  statusEl.className = "status-msg";
-
-  if (!currentToken) {
-    // If not logged in, prompt registration modal
-    openModal('register');
-    return;
-  }
-
-  try {
-    const res = await authFetch("/api/auth/profile", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name,
-        state,
-        qualifications: quals,
-        custom_keywords: currentUser ? currentUser.custom_keywords : []
-      })
-    });
-    const data = await res.json();
-    if (data.success) {
-      setLoggedInUser(data.user);
-      statusEl.textContent = "Profile saved! Jobs updated.";
-      statusEl.classList.add("status-success");
-      playAlertChime();
-      await loadJobs();
-      await loadStats();
-    }
-  } catch (err) {
-    statusEl.textContent = "Error: " + err.message;
-  }
-}
-
 // Trigger Manual Scrape
 async function triggerScrapeNow() {
   const btn = document.getElementById("btn-check-now");
@@ -515,7 +655,7 @@ async function triggerScrapeNow() {
 
   btn.disabled = true;
   icon.classList.add("active");
-  text.textContent = "Scraping 3 Portals...";
+  text.textContent = "Scanning...";
 
   try {
     const res = await authFetch("/api/scrape-now", { method: "POST" });
@@ -550,7 +690,7 @@ async function testNotification() {
   try {
     const res = await authFetch("/api/test-notification", { method: "POST" });
     const data = await res.json();
-    alert(`🎯 Test alert sent to topic '${data.topic}'!\nCheck your phone lockscreen via the ntfy app.`);
+    alert(`🎯 Test alert dispatched to topic '${data.topic}'!\nCheck your phone lock screen via the ntfy app.`);
   } catch (err) {
     alert("Alert dispatch error: " + err.message);
   } finally {
@@ -575,6 +715,22 @@ async function requestNotificationPermission() {
   } else {
     alert("Notification permission denied in browser settings.");
   }
+}
+
+function listUnique(arr) {
+  return listUniqueFilter(arr);
+}
+
+function listUniqueFilter(arr) {
+  const seen = new Set();
+  const out = [];
+  for (const x of arr) {
+    if (x && !seen.has(x.toUpperCase())) {
+      seen.add(x.toUpperCase());
+      out.push(x);
+    }
+  }
+  return out;
 }
 
 function escapeHtml(str) {

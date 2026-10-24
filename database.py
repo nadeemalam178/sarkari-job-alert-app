@@ -36,7 +36,7 @@ def init_db():
     conn = get_db()
     cursor = conn.cursor()
     
-    # 1. Jobs Table (with source column)
+    # 1. Jobs Table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS jobs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -54,15 +54,6 @@ def init_db():
         )
     ''')
 
-    # Check if 'source' column exists in existing DB
-    cursor.execute("PRAGMA table_info(jobs)")
-    cols = [col[1] for col in cursor.fetchall()]
-    if "source" not in cols:
-        try:
-            cursor.execute("ALTER TABLE jobs ADD COLUMN source TEXT DEFAULT 'SarkariResult'")
-        except Exception:
-            pass
-
     # 2. Users Table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
@@ -70,6 +61,7 @@ def init_db():
             name TEXT,
             email TEXT UNIQUE COLLATE NOCASE,
             password_hash TEXT,
+            highest_qualification TEXT DEFAULT 'Graduate',
             qualifications TEXT,
             custom_keywords TEXT,
             state TEXT DEFAULT 'All India',
@@ -77,6 +69,15 @@ def init_db():
             created_at TEXT
         )
     ''')
+
+    # Ensure highest_qualification column exists
+    cursor.execute("PRAGMA table_info(users)")
+    cols = [col[1] for col in cursor.fetchall()]
+    if "highest_qualification" not in cols:
+        try:
+            cursor.execute("ALTER TABLE users ADD COLUMN highest_qualification TEXT DEFAULT 'Graduate'")
+        except Exception:
+            pass
 
     # 3. Sessions Table
     cursor.execute('''
@@ -91,12 +92,11 @@ def init_db():
     conn.commit()
     conn.close()
 
-    # Sync from jobs.json into SQLite if DB is empty
     sync_json_to_db_if_needed()
 
 # --- User Auth Functions ---
 
-def register_user(name, email, password, qualifications, custom_keywords=None, state="All India"):
+def register_user(name, email, password, highest_qualification="Graduate", qualifications=None, custom_keywords=None, state="All India"):
     name = (name or "").strip()
     email = (email or "").strip().lower()
     if not email or not password or not name:
@@ -114,12 +114,13 @@ def register_user(name, email, password, qualifications, custom_keywords=None, s
         ntfy_topic = f"sarkari_job_{clean_name}_{rand_suffix}"
 
         cursor.execute('''
-            INSERT INTO users (name, email, password_hash, qualifications, custom_keywords, state, ntfy_topic, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO users (name, email, password_hash, highest_qualification, qualifications, custom_keywords, state, ntfy_topic, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             name,
             email,
             pw_hash,
+            highest_qualification or "Graduate",
             json.dumps(qualifications),
             json.dumps(custom_keywords or []),
             state or "All India",
@@ -129,7 +130,6 @@ def register_user(name, email, password, qualifications, custom_keywords=None, s
         user_id = cursor.lastrowid
         conn.commit()
 
-        # Create session
         token = create_session(user_id)
         user_data = get_user_by_id(user_id)
         conn.close()
@@ -197,7 +197,7 @@ def get_user_by_id(user_id):
         return format_user_row(row)
     return None
 
-def update_user_profile(user_id, name=None, qualifications=None, custom_keywords=None, state=None, ntfy_topic=None):
+def update_user_profile(user_id, name=None, highest_qualification=None, qualifications=None, custom_keywords=None, state=None, ntfy_topic=None):
     conn = get_db()
     cursor = conn.cursor()
     updates = []
@@ -206,6 +206,9 @@ def update_user_profile(user_id, name=None, qualifications=None, custom_keywords
     if name is not None:
         updates.append("name = ?")
         params.append(name.strip())
+    if highest_qualification is not None:
+        updates.append("highest_qualification = ?")
+        params.append(highest_qualification.strip())
     if qualifications is not None:
         updates.append("qualifications = ?")
         params.append(json.dumps(qualifications))
@@ -242,13 +245,10 @@ def logout_session(token):
 def get_all_users_for_notifications():
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("SELECT id, name, email, qualifications, custom_keywords, ntfy_topic FROM users")
+    cursor.execute("SELECT * FROM users")
     rows = cursor.fetchall()
     conn.close()
-    users = []
-    for r in rows:
-        users.append(format_user_row(r))
-    return users
+    return [format_user_row(r) for r in rows]
 
 def format_user_row(row):
     quals = []
@@ -266,6 +266,7 @@ def format_user_row(row):
         "id": row["id"],
         "name": row["name"],
         "email": row["email"],
+        "highest_qualification": row["highest_qualification"] if "highest_qualification" in row.keys() else "Graduate",
         "qualifications": quals,
         "custom_keywords": kw,
         "state": row["state"] if "state" in row.keys() else "All India",
@@ -273,7 +274,7 @@ def format_user_row(row):
         "created_at": row["created_at"] if "created_at" in row.keys() else None
     }
 
-# --- Jobs & Sync Functions ---
+# --- Jobs Management ---
 
 def sync_json_to_db_if_needed():
     if os.path.exists(JOBS_JSON_PATH):
@@ -315,15 +316,10 @@ def sync_db_to_json():
         jobs = []
         for r in rows:
             qual_found = []
-            matched_kw = []
             try:
                 qual_found = json.loads(r["qualifications_found"]) if r["qualifications_found"] else []
             except:
                 qual_found = [r["qualifications_found"]]
-            try:
-                matched_kw = json.loads(r["matched_keywords"]) if r["matched_keywords"] else []
-            except:
-                matched_kw = [r["matched_keywords"]]
 
             jobs.append({
                 "id": r["id"],
@@ -334,7 +330,7 @@ def sync_db_to_json():
                 "last_date": r["last_date"],
                 "eligibility_snippet": r["eligibility_snippet"],
                 "qualifications_found": qual_found,
-                "matched_keywords": matched_kw,
+                "matched_keywords": json.loads(r["matched_keywords"] or "[]"),
                 "is_matched": bool(r["is_matched"]),
                 "scraped_at": r["scraped_at"],
                 "notified": bool(r["notified"])
@@ -359,13 +355,7 @@ def get_seen_urls():
             urls.add(r["url"])
         conn.close()
     except Exception:
-        if os.path.exists(JOBS_JSON_PATH):
-            try:
-                with open(JOBS_JSON_PATH, "r", encoding="utf-8") as f:
-                    jobs = json.load(f)
-                    urls = {j.get("url") for j in jobs if j.get("url")}
-            except Exception:
-                pass
+        pass
     return urls
 
 def save_job(job_data):
@@ -392,10 +382,6 @@ def save_job(job_data):
     conn.close()
 
 def get_jobs_for_user(user=None, matched_only=False, search=None, source=None, limit=100):
-    """
-    Returns jobs customized for the logged-in user:
-    Calculates dynamic qualification matches based on user's selected qualifications!
-    """
     try:
         conn = get_db()
         cursor = conn.cursor()
@@ -415,7 +401,8 @@ def get_jobs_for_user(user=None, matched_only=False, search=None, source=None, l
         if conditions:
             query += " WHERE " + " AND ".join(conditions)
 
-        query += " ORDER BY id DESC LIMIT ?"
+        # Sort so SarkariResult jobs appear first, followed by newest ID
+        query += " ORDER BY CASE WHEN source = 'SarkariResult' THEN 0 ELSE 1 END, id DESC LIMIT ?"
         params.append(limit * 2 if matched_only else limit)
 
         cursor.execute(query, params)
@@ -424,6 +411,7 @@ def get_jobs_for_user(user=None, matched_only=False, search=None, source=None, l
 
         user_quals = [q.upper() for q in (user.get("qualifications", []) if user else [])]
         user_kw = [k.lower() for k in (user.get("custom_keywords", []) if user else [])]
+        highest_level = (user.get("highest_qualification", "") if user else "").upper()
 
         results = []
         for r in rows:
@@ -433,15 +421,23 @@ def get_jobs_for_user(user=None, matched_only=False, search=None, source=None, l
             except Exception:
                 qual_found = [r["qualifications_found"]]
 
-            # Compute dynamic match for this specific user
             matched_for_this_user = []
+            
+            # 1. Match specific user degrees
             for uq in user_quals:
                 for qf in qual_found:
                     if uq in qf.upper() or qf.upper() in uq:
                         matched_for_this_user.append(qf)
                         break
 
-            # Check custom keywords in text
+            # 2. Downward eligibility for general degree levels
+            # If user has Graduate or PG, they are eligible for general graduate / degree jobs
+            if any(h in highest_level for h in ["GRADUATE", "POST GRADUATE", "MASTER", "B.TECH", "MCA"]):
+                for qf in qual_found:
+                    if "GRADUATE" in qf:
+                        matched_for_this_user.append("GRADUATE")
+
+            # 3. Custom keywords check
             text_combo = (r["title"] + " " + (r["eligibility_snippet"] or "") + " " + (r["org"] or "")).lower()
             for kw in user_kw:
                 if kw and kw in text_combo:
@@ -494,7 +490,6 @@ def get_stats(user=None):
     except Exception:
         pass
 
-    # Count matched for user
     if user:
         matched_jobs = get_jobs_for_user(user=user, matched_only=True, limit=500)
         total_matched = len(matched_jobs)
@@ -515,7 +510,9 @@ def get_stats(user=None):
         "ntfy_topic": user.get("ntfy_topic") if user else "sarkari_job_alert_user"
     }
 
-# Backward compatibility functions
+def get_all_jobs(matched_only=False, search=None, limit=100):
+    return get_jobs_for_user(user=None, matched_only=matched_only, search=search, limit=limit)
+
 def get_settings():
     if os.path.exists(SETTINGS_JSON_PATH):
         try:
@@ -523,18 +520,10 @@ def get_settings():
                 return json.load(f)
         except Exception:
             pass
-    return {
-        "selected_qualifications": ["B.ED", "CTET", "GRADUATE", "10+2"],
-        "custom_keywords": ["TEACHER"],
-        "check_interval_minutes": 60,
-        "ntfy_topic": "sarkari_job_alert_user"
-    }
+    return {"selected_qualifications": ["GRADUATE"]}
 
 def save_settings(settings):
     with open(SETTINGS_JSON_PATH, "w", encoding="utf-8") as f:
         json.dump(settings, f, indent=2, ensure_ascii=False)
-
-def get_all_jobs(matched_only=False, search=None, limit=100):
-    return get_jobs_for_user(user=None, matched_only=matched_only, search=search, limit=limit)
 
 init_db()
