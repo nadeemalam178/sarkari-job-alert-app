@@ -1,5 +1,37 @@
 [
   {
+    "id": 331,
+    "source": "FreeJobAlert",
+    "url": "https://www.freejobalert.com/articles/sbi-recruitment-2026-gm-chief-ai-officer-dgm-3074384",
+    "title": "SBI - GM & Chief AI Officer, DGM and More – 6 Posts",
+    "org": "SBI",
+    "last_date": "09-11-2026",
+    "eligibility_snippet": "Qualification: B.Tech/B.E, Any Graduate, MBA/PGDM | Post Date: 18/10/2026",
+    "qualifications_found": [
+      "GRADUATE",
+      "B.TECH / B.E",
+      "MBA / PGDM"
+    ],
+    "matched_keywords": [],
+    "is_matched": true,
+    "scraped_at": "2026-10-24 15:41",
+    "notified": false
+  },
+  {
+    "id": 330,
+    "source": "FreeJobAlert",
+    "url": "https://www.freejobalert.com/articles/tmb-credit-trainer-recruitment-2026-3074390",
+    "title": "TMB - Credit Trainer – 1 Posts",
+    "org": "TMB",
+    "last_date": "31-10-2026",
+    "eligibility_snippet": "Qualification: Other | Post Date: 18/10/2026",
+    "qualifications_found": [],
+    "matched_keywords": [],
+    "is_matched": false,
+    "scraped_at": "2026-10-24 15:41",
+    "notified": false
+  },
+  {
     "id": 105,
     "source": "RojgarResult",
     "url": "https://rojgarresult.com/bpsc-bihar-teacher-tre-4-0-2026/",

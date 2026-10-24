@@ -15,8 +15,8 @@ node_modules/
 **/node_modules/
 .expo/
 **/.expo/
-android/app/build/
-android/.gradle/
+expo-mobile/android/
+android/
 *.apk
 
 # OS
