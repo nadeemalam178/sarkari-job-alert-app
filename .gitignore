@@ -17,6 +17,7 @@ node_modules/
 **/.expo/
 expo-mobile/android/
 android/
+release-apk/
 *.apk
 
 # OS
