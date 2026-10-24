@@ -7,19 +7,20 @@ echo ======================================================================
 echo.
 cd /d "%~dp0"
 
-echo [1/2] Checking dependencies...
-if not exist "node_modules\expo" (
-    echo Installing Expo & React Native dependencies...
-    call npm install
-)
+call node -v
+call npm -v
 
 echo.
-echo [2/2] Starting Expo Development Server for Expo Go...
+echo Starting Expo Development Server for Expo Go...
 echo Scan the QR code below using the Expo Go app on your phone:
 echo.
 
 call npx expo start --go
 
+if %errorlevel% neq 0 (
+    call npx expo start
+)
+
 echo.
-echo Expo server stopped.
+echo Server finished or stopped.
 pause
