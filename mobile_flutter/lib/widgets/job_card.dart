@@ -110,22 +110,25 @@ class JobCard extends StatelessWidget {
     final palette = AppPalette.of(context);
     final isSarkariResult = job.source.toLowerCase().contains('sarkari');
 
-    return TactilePress(
-      onTap: () => _openDetails(context),
-      scaleFactor: 0.975,
-      child: Container(
-        margin: margin ?? const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
-        decoration: palette.glassDecoration(
-          radius: 18,
-          customBorder: isSaved ? palette.accentPrimary : null,
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Top Row: Portal Badge, Vacancy Pill & Last Date
+    return Container(
+      margin: margin ?? const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
+      decoration: palette.glassDecoration(
+        radius: 18,
+        customBorder: isSaved ? palette.accentPrimary : null,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(18),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: () => _openDetails(context),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Top Row: Portal Badge, Vacancy Pill & Last Date
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
@@ -321,6 +324,7 @@ class JobCard extends StatelessWidget {
           ),
         ),
       ),
-    );
+    ),
+  );
   }
 }

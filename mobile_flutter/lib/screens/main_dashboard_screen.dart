@@ -11,7 +11,6 @@ import '../utils/qualification_matcher.dart';
 import '../widgets/custom_bottom_dock.dart';
 import '../widgets/hero_metric_card.dart';
 import '../widgets/job_card.dart';
-import '../widgets/motion_spells.dart';
 import '../widgets/portal_filter_bar.dart';
 import '../widgets/qualification_picker_sheet.dart';
 import 'auth_screen.dart';
@@ -53,7 +52,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
   int _currentTab = 0; // 0: For You, 1: Explore, 2: Saved, 3: Alerts
   bool _isLoading = false;
   bool _bannerDismissed = false;
-  bool _isBarsVisible = true;
+  final ValueNotifier<bool> _isBarsVisible = ValueNotifier<bool>(true);
   String? _expandedSectorIdForYou;
   String? _expandedSectorIdExplore;
   bool _exploreViewBySector = true;
@@ -68,6 +67,12 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
   String _selectedSource = 'All';
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
+
+  // Cached Filtered Collections for 0ms Rendering
+  List<JobPost> _matchedJobs = [];
+  List<JobPost> _filteredExploreJobs = [];
+  final Map<String, List<JobPost>> _forYouSectorJobs = {};
+  final Map<String, List<JobPost>> _exploreSectorJobs = {};
 
   static const List<SectorHub> _sectors = [
     SectorHub(
@@ -145,7 +150,48 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
   @override
   void dispose() {
     _searchController.dispose();
+    _isBarsVisible.dispose();
     super.dispose();
+  }
+
+  void _recomputeCaches() {
+    // 1. Matched Jobs for "For You"
+    _matchedJobs = _allJobs.where((job) {
+      return QualificationMatcher.isJobEligible(job, _selectedQualifications);
+    }).toList();
+
+    // 2. Filtered Explore Jobs for "Explore"
+    var list = _allJobs;
+    if (_selectedSource != 'All') {
+      list = list.where((j) => j.source.toLowerCase() == _selectedSource.toLowerCase()).toList();
+    }
+    if (_searchQuery.trim().isNotEmpty) {
+      final q = _searchQuery.trim().toLowerCase();
+      list = list.where((j) =>
+          j.title.toLowerCase().contains(q) ||
+          j.org.toLowerCase().contains(q) ||
+          j.eligibilitySnippet.toLowerCase().contains(q) ||
+          j.qualificationsFound.any((qual) => qual.toLowerCase().contains(q))).toList();
+    }
+    _filteredExploreJobs = list;
+
+    // 3. Sector mapping for "For You"
+    _forYouSectorJobs.clear();
+    for (final sec in _sectors) {
+      _forYouSectorJobs[sec.id] = _matchedJobs.where((j) {
+        final text = '${j.title} ${j.org} ${j.eligibilitySnippet} ${j.qualificationsFound.join(" ")}'.toUpperCase();
+        return sec.keywords.any((k) => text.contains(k));
+      }).toList();
+    }
+
+    // 4. Sector mapping for "Explore"
+    _exploreSectorJobs.clear();
+    for (final sec in _sectors) {
+      _exploreSectorJobs[sec.id] = _filteredExploreJobs.where((j) {
+        final text = '${j.title} ${j.org} ${j.eligibilitySnippet} ${j.qualificationsFound.join(" ")}'.toUpperCase();
+        return sec.keywords.any((k) => text.contains(k));
+      }).toList();
+    }
   }
 
   Future<void> _initialFastLoad() async {
@@ -169,6 +215,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
             ? profile['name']!.split(' ').first
             : 'Candidate';
         _bannerDismissed = dismissed;
+        _recomputeCaches();
       });
     }
 
@@ -192,6 +239,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
         setState(() {
           _allJobs = freshJobs;
           _isLoading = false;
+          _recomputeCaches();
         });
         await StorageService.cacheJobs(freshJobs);
       }
@@ -204,12 +252,13 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     try {
       final freshJobs = await ApiService.fetchJobs();
       if (freshJobs.isNotEmpty && mounted) {
-        setState(() => _allJobs = freshJobs);
+        setState(() {
+          _allJobs = freshJobs;
+          _recomputeCaches();
+        });
         await StorageService.cacheJobs(freshJobs);
       }
-    } catch (_) {
-    } finally {
-    }
+    } catch (_) {}
   }
 
   Future<void> _toggleSaveJob(int id) async {
@@ -229,7 +278,6 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     _dismissBanner();
     setState(() {
       _currentTab = 3;
-      _isBarsVisible = true;
     });
   }
 
@@ -241,7 +289,10 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
           : Qualification.defaultMasterList,
       initialSelected: _selectedQualifications,
       onSaved: (newSelected) async {
-        setState(() => _selectedQualifications = newSelected);
+        setState(() {
+          _selectedQualifications = newSelected;
+          _recomputeCaches();
+        });
         await StorageService.setSelectedQualifications(newSelected);
       },
     );
@@ -256,7 +307,10 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
           selectedQualifications: _selectedQualifications,
           currentThemeMode: widget.currentThemeMode,
           onQualificationsChanged: (newSelected) {
-            setState(() => _selectedQualifications = newSelected);
+            setState(() {
+              _selectedQualifications = newSelected;
+              _recomputeCaches();
+            });
           },
           onThemeChanged: widget.onThemeChanged,
         ),
@@ -285,31 +339,6 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     }
   }
 
-  List<JobPost> _getMatchedJobs() {
-    return _allJobs.where((job) {
-      return QualificationMatcher.isJobEligible(job, _selectedQualifications);
-    }).toList();
-  }
-
-  List<JobPost> _getFilteredExploreJobs() {
-    var list = _allJobs;
-
-    if (_selectedSource != 'All') {
-      list = list.where((j) => j.source.toLowerCase() == _selectedSource.toLowerCase()).toList();
-    }
-
-    if (_searchQuery.trim().isNotEmpty) {
-      final q = _searchQuery.trim().toLowerCase();
-      list = list.where((j) =>
-          j.title.toLowerCase().contains(q) ||
-          j.org.toLowerCase().contains(q) ||
-          j.eligibilitySnippet.toLowerCase().contains(q) ||
-          j.qualificationsFound.any((qual) => qual.toLowerCase().contains(q))).toList();
-    }
-
-    return list;
-  }
-
   List<JobPost> _getSavedJobs() {
     return _allJobs.where((job) => _savedJobIds.contains(job.id)).toList();
   }
@@ -327,78 +356,72 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
           if (notification is ScrollUpdateNotification) {
             final delta = notification.scrollDelta ?? 0;
             if (delta > 8.0) {
-              if (_isBarsVisible) setState(() => _isBarsVisible = false);
+              if (_isBarsVisible.value) _isBarsVisible.value = false;
             } else if (delta < -8.0) {
-              if (!_isBarsVisible) setState(() => _isBarsVisible = true);
+              if (!_isBarsVisible.value) _isBarsVisible.value = true;
             }
           }
           if (notification.metrics.pixels <= 10.0) {
-            if (!_isBarsVisible) setState(() => _isBarsVisible = true);
+            if (!_isBarsVisible.value) _isBarsVisible.value = true;
           }
           return false;
         },
         child: Stack(
           children: [
-            // 1. Content Views Layer with AnimatedSwitcher (Fade + subtle slide transition)
+            // 1. Content Views Layer with High-Performance IndexedStack (0ms Tab Switching & Kept State)
             Positioned.fill(
               child: _isLoading && _allJobs.isEmpty
                   ? Center(child: CircularProgressIndicator(color: palette.accentPrimary))
-                  : AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 240),
-                      switchInCurve: Curves.easeOutCubic,
-                      switchOutCurve: Curves.easeInCubic,
-                      transitionBuilder: (child, animation) {
-                        return FadeTransition(
-                          opacity: animation,
-                          child: SlideTransition(
-                            position: Tween<Offset>(
-                              begin: const Offset(0.0, 0.03),
-                              end: Offset.zero,
-                            ).animate(animation),
-                            child: child,
-                          ),
-                        );
-                      },
-                      child: KeyedSubtree(
-                        key: ValueKey<int>(_currentTab),
-                        child: _buildCurrentTabContent(palette, topPadding, bottomPadding),
-                      ),
+                  : IndexedStack(
+                      index: _currentTab,
+                      children: [
+                        _buildForYouDashboardView(palette, topPadding, bottomPadding),
+                        _buildExploreDirectoryView(palette, topPadding, bottomPadding),
+                        _buildSavedView(palette, topPadding, bottomPadding),
+                        _buildAlertsView(palette, topPadding, bottomPadding),
+                      ],
                     ),
             ),
 
-            // 2. Floating Frosted Top Header (AnimatedSlide UP on scroll)
+            // 2. Floating Frosted Top Header (ValueListenableBuilder for 0-rebuild scroll performance)
             Positioned(
               top: 0,
               left: 0,
               right: 0,
-              child: AnimatedSlide(
-                duration: const Duration(milliseconds: 280),
-                curve: Curves.easeOutCubic,
-                offset: _isBarsVisible ? Offset.zero : const Offset(0, -1.2),
-                child: IgnorePointer(
-                  ignoring: !_isBarsVisible,
-                  child: ClipRect(
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: palette.background.withValues(alpha: 0.85),
-                          border: Border(
-                            bottom: BorderSide(
-                              color: palette.cardBorder.withValues(alpha: 0.5),
-                              width: 0.8,
-                            ),
+              child: ValueListenableBuilder<bool>(
+                valueListenable: _isBarsVisible,
+                builder: (context, isVisible, child) {
+                  return AnimatedSlide(
+                    duration: const Duration(milliseconds: 240),
+                    curve: Curves.easeOutCubic,
+                    offset: isVisible ? Offset.zero : const Offset(0, -1.2),
+                    child: IgnorePointer(
+                      ignoring: !isVisible,
+                      child: child,
+                    ),
+                  );
+                },
+                child: ClipRect(
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: palette.background.withValues(alpha: 0.85),
+                        border: Border(
+                          bottom: BorderSide(
+                            color: palette.cardBorder.withValues(alpha: 0.5),
+                            width: 0.8,
                           ),
                         ),
-                        child: SafeArea(
-                          bottom: false,
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              _buildTopHeader(palette),
-                              if (!_bannerDismissed) _buildNotificationBanner(palette),
-                            ],
-                          ),
+                      ),
+                      child: SafeArea(
+                        bottom: false,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _buildTopHeader(palette),
+                            if (!_bannerDismissed) _buildNotificationBanner(palette),
+                          ],
                         ),
                       ),
                     ),
@@ -407,28 +430,34 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
               ),
             ),
 
-            // 3. Floating Bottom Dock (AnimatedSlide DOWN on scroll)
+            // 3. Floating Bottom Dock (ValueListenableBuilder for 0-rebuild scroll performance)
             Positioned(
               bottom: 0,
               left: 0,
               right: 0,
-              child: AnimatedSlide(
-                duration: const Duration(milliseconds: 280),
-                curve: Curves.easeOutCubic,
-                offset: _isBarsVisible ? Offset.zero : const Offset(0, 1.2),
-                child: IgnorePointer(
-                  ignoring: !_isBarsVisible,
-                  child: SafeArea(
-                    top: false,
-                    child: CustomBottomDock(
-                      currentIndex: _currentTab,
-                      onTabSelected: (idx) {
-                        setState(() {
-                          _currentTab = idx;
-                          _isBarsVisible = true;
-                        });
-                      },
+              child: ValueListenableBuilder<bool>(
+                valueListenable: _isBarsVisible,
+                builder: (context, isVisible, child) {
+                  return AnimatedSlide(
+                    duration: const Duration(milliseconds: 240),
+                    curve: Curves.easeOutCubic,
+                    offset: isVisible ? Offset.zero : const Offset(0, 1.2),
+                    child: IgnorePointer(
+                      ignoring: !isVisible,
+                      child: child,
                     ),
+                  );
+                },
+                child: SafeArea(
+                  top: false,
+                  child: CustomBottomDock(
+                    currentIndex: _currentTab,
+                    onTabSelected: (idx) {
+                      setState(() {
+                        _currentTab = idx;
+                      });
+                      if (!_isBarsVisible.value) _isBarsVisible.value = true;
+                    },
                   ),
                 ),
               ),
@@ -437,21 +466,6 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
         ),
       ),
     );
-  }
-
-  Widget _buildCurrentTabContent(AppPalette palette, double topPadding, double bottomPadding) {
-    switch (_currentTab) {
-      case 0:
-        return _buildForYouDashboardView(palette, topPadding, bottomPadding);
-      case 1:
-        return _buildExploreDirectoryView(palette, topPadding, bottomPadding);
-      case 2:
-        return _buildSavedView(palette, topPadding, bottomPadding);
-      case 3:
-        return _buildAlertsView(palette, topPadding, bottomPadding);
-      default:
-        return _buildForYouDashboardView(palette, topPadding, bottomPadding);
-    }
   }
 
   // --- Top Header with Tactile Avatar and Status ---
@@ -508,10 +522,9 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                 ],
               ),
 
-              // Right: Profile Avatar with TactilePress
-              TactilePress(
+              // Right: Profile Avatar
+              GestureDetector(
                 onTap: _openProfile,
-                scaleFactor: 0.92,
                 child: Container(
                   width: 36,
                   height: 36,
@@ -552,10 +565,9 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                 ),
               ),
 
-              // Active Qualification Pill with TactilePress
-              TactilePress(
+              // Active Qualification Pill
+              GestureDetector(
                 onTap: _openQualificationPicker,
-                scaleFactor: 0.94,
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
@@ -649,8 +661,6 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
 
   // --- TAB 0: "FOR YOU" (Strictly Filtered Matched Vacancies Only) ---
   Widget _buildForYouDashboardView(AppPalette palette, double topInset, double bottomInset) {
-    final matchedJobs = _getMatchedJobs();
-
     return RefreshIndicator(
       onRefresh: _handlePullRefresh,
       color: palette.accentPrimary,
@@ -662,12 +672,12 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
           children: [
             // 1. Hero Metric Card - FOR YOU (Strictly Matched Jobs, stays on For You)
             HeroMetricCard(
-              totalJobs: matchedJobs.length,
-              matchedCount: matchedJobs.length,
-              title: '${matchedJobs.length} Eligible Vacancies',
+              totalJobs: _matchedJobs.length,
+              matchedCount: _matchedJobs.length,
+              title: '${_matchedJobs.length} Eligible Vacancies',
               subtitle: 'Strictly matching your ${_selectedQualifications.length} qualifications • Tap to adjust',
               actionIcon: Icons.tune_rounded,
-              onTap: _openQualificationPicker, // STAYS ON FOR YOU, OPENS QUALIFICATION PICKER
+              onTap: _openQualificationPicker,
             ),
 
             // 2. Section Header: Recruitment Sectors for Candidate
@@ -711,14 +721,15 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
               ),
             ),
 
-            // 3. Sector Accordion Cards (Each filtered strictly for candidate's qualifications)
+            // 3. Sector Accordion Cards (Pre-computed sector caches for instant rendering)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Column(
                 children: _sectors.map((sec) {
+                  final sectorJobs = _forYouSectorJobs[sec.id] ?? [];
                   return _buildSectorAccordionCard(
                     sector: sec,
-                    sourceJobs: matchedJobs, // ONLY MATCHED JOBS ON FOR YOU!
+                    sectorJobs: sectorJobs,
                     palette: palette,
                     isForYouMode: true,
                     isExpanded: _expandedSectorIdForYou == sec.id,
@@ -740,17 +751,12 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
   // Clean, spacious Sector Accordion Card (De-shrinked with full-width JobCards)
   Widget _buildSectorAccordionCard({
     required SectorHub sector,
-    required List<JobPost> sourceJobs,
+    required List<JobPost> sectorJobs,
     required AppPalette palette,
     required bool isForYouMode,
     required bool isExpanded,
     required VoidCallback onToggle,
   }) {
-    final sectorJobs = sourceJobs.where((j) {
-      final text = '${j.title} ${j.org} ${j.eligibilitySnippet} ${j.qualificationsFound.join(" ")}'.toUpperCase();
-      return sector.keywords.any((k) => text.contains(k));
-    }).toList();
-
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: AnimatedContainer(
@@ -776,9 +782,9 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
         child: Column(
           children: [
             // Header Bar
-            TactilePress(
-              scaleFactor: 0.98,
+            GestureDetector(
               onTap: onToggle,
+              behavior: HitTestBehavior.opaque,
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
                 child: Row(
@@ -860,7 +866,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
 
             // Collapsible Accordion Subsection Body (Generous, de-shrinked layout)
             AnimatedCrossFade(
-              duration: const Duration(milliseconds: 260),
+              duration: const Duration(milliseconds: 240),
               firstCurve: Curves.easeOutCubic,
               secondCurve: Curves.easeOutCubic,
               crossFadeState: isExpanded ? CrossFadeState.showFirst : CrossFadeState.showSecond,
@@ -904,7 +910,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                           job: j,
                           isSaved: isSaved,
                           onToggleSave: () => _toggleSaveJob(j.id),
-                          margin: const EdgeInsets.only(bottom: 8), // DE-SHRINK: Zero horizontal margin so it uses full natural width
+                          margin: const EdgeInsets.only(bottom: 8),
                         );
                       }),
                   ],
@@ -920,8 +926,6 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
 
   // --- TAB 1: EXPLORE DIRECTORY (Total Vacancies with Sector Subsections + Flat List Toggle) ---
   Widget _buildExploreDirectoryView(AppPalette palette, double topInset, double bottomInset) {
-    final exploreJobs = _getFilteredExploreJobs();
-
     return RefreshIndicator(
       onRefresh: _handlePullRefresh,
       color: palette.accentPrimary,
@@ -940,7 +944,10 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                   child: TextField(
                     controller: _searchController,
                     onChanged: (val) {
-                      setState(() => _searchQuery = val);
+                      setState(() {
+                        _searchQuery = val;
+                        _recomputeCaches();
+                      });
                     },
                     style: TextStyle(color: palette.textPrimary, fontSize: 13),
                     decoration: InputDecoration(
@@ -952,7 +959,10 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                               icon: const Icon(Icons.clear, size: 16),
                               onPressed: () {
                                 _searchController.clear();
-                                setState(() => _searchQuery = '');
+                                setState(() {
+                                  _searchQuery = '';
+                                  _recomputeCaches();
+                                });
                               },
                             )
                           : null,
@@ -976,7 +986,10 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                 PortalFilterBar(
                   selectedSource: _selectedSource,
                   onSourceSelected: (src) {
-                    setState(() => _selectedSource = src);
+                    setState(() {
+                      _selectedSource = src;
+                      _recomputeCaches();
+                    });
                   },
                 ),
                 const SizedBox(height: 6),
@@ -1001,7 +1014,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            'Total ${exploreJobs.length} postings across all qualifications',
+                            'Total ${_filteredExploreJobs.length} postings across all qualifications',
                             style: TextStyle(
                               fontSize: 11,
                               color: palette.textSecondary,
@@ -1010,8 +1023,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                         ],
                       ),
                       // View Mode Toggle Button
-                      TactilePress(
-                        scaleFactor: 0.94,
+                      GestureDetector(
                         onTap: () {
                           setState(() {
                             _exploreViewBySector = !_exploreViewBySector;
@@ -1052,7 +1064,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
             ),
           ),
 
-          // Sector Accordion View in Explore (Same as For You, but showing TOTAL vacancies)
+          // Sector Accordion View in Explore (Pre-computed cache for instant 0ms expansion)
           if (_exploreViewBySector)
             SliverPadding(
               padding: EdgeInsets.fromLTRB(16, 0, 16, bottomInset + 20),
@@ -1060,9 +1072,10 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
                     final sec = _sectors[index];
+                    final sectorJobs = _exploreSectorJobs[sec.id] ?? [];
                     return _buildSectorAccordionCard(
                       sector: sec,
-                      sourceJobs: exploreJobs, // TOTAL JOBS IN EXPLORE!
+                      sectorJobs: sectorJobs,
                       palette: palette,
                       isForYouMode: false,
                       isExpanded: _expandedSectorIdExplore == sec.id,
@@ -1078,8 +1091,8 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
               ),
             )
           else
-            // Flat List View in Explore
-            if (exploreJobs.isEmpty)
+            // High-Performance Flat List View (Zero tickers during scroll, RepaintBoundaries active)
+            if (_filteredExploreJobs.isEmpty)
               SliverFillRemaining(
                 hasScrollBody: false,
                 child: _buildEmptyState(
@@ -1094,18 +1107,17 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                 sliver: SliverList(
                   delegate: SliverChildBuilderDelegate(
                     (context, index) {
-                      final job = exploreJobs[index];
+                      final job = _filteredExploreJobs[index];
                       final isSaved = _savedJobIds.contains(job.id);
-                      return StaggeredFadeSlide(
-                        index: index,
-                        child: JobCard(
-                          job: job,
-                          isSaved: isSaved,
-                          onToggleSave: () => _toggleSaveJob(job.id),
-                        ),
+                      return JobCard(
+                        job: job,
+                        isSaved: isSaved,
+                        onToggleSave: () => _toggleSaveJob(job.id),
                       );
                     },
-                    childCount: exploreJobs.length,
+                    childCount: _filteredExploreJobs.length,
+                    addAutomaticKeepAlives: true,
+                    addRepaintBoundaries: true,
                   ),
                 ),
               ),
@@ -1156,16 +1168,15 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
               delegate: SliverChildBuilderDelegate(
                 (context, index) {
                   final job = savedJobs[index];
-                  return StaggeredFadeSlide(
-                    index: index,
-                    child: JobCard(
-                      job: job,
-                      isSaved: true,
-                      onToggleSave: () => _toggleSaveJob(job.id),
-                    ),
+                  return JobCard(
+                    job: job,
+                    isSaved: true,
+                    onToggleSave: () => _toggleSaveJob(job.id),
                   );
                 },
                 childCount: savedJobs.length,
+                addAutomaticKeepAlives: true,
+                addRepaintBoundaries: true,
               ),
             ),
           ),
@@ -1175,42 +1186,46 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
 
   // --- TAB 3: ALERTS TAB ---
   Widget _buildAlertsView(AppPalette palette, double topInset, double bottomInset) {
-    final alertJobs = _getMatchedJobs().take(8).toList();
+    final alertJobs = _matchedJobs.take(12).toList();
 
-    return ListView(
+    return ListView.builder(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: EdgeInsets.fromLTRB(20, topInset + 12, 20, bottomInset + 20),
-      children: [
-        Text(
-          'Recruitment Alerts',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-            color: palette.textPrimary,
-            letterSpacing: -0.3,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'Instant notifications for vacancies matching your qualifications',
-          style: TextStyle(fontSize: 12, color: palette.textSecondary),
-        ),
-        const SizedBox(height: 14),
-
-        ...alertJobs.asMap().entries.map((entry) {
-          final index = entry.key;
-          final j = entry.value;
-          final isSaved = _savedJobIds.contains(j.id);
-          return StaggeredFadeSlide(
-            index: index,
-            child: JobCard(
-              job: j,
-              isSaved: isSaved,
-              onToggleSave: () => _toggleSaveJob(j.id),
+      padding: EdgeInsets.fromLTRB(0, topInset + 12, 0, bottomInset + 20),
+      itemCount: alertJobs.length + 1,
+      itemBuilder: (context, index) {
+        if (index == 0) {
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Recruitment Alerts',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: palette.textPrimary,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Instant notifications for vacancies matching your qualifications',
+                  style: TextStyle(fontSize: 12, color: palette.textSecondary),
+                ),
+              ],
             ),
           );
-        }),
-      ],
+        }
+
+        final j = alertJobs[index - 1];
+        final isSaved = _savedJobIds.contains(j.id);
+        return JobCard(
+          job: j,
+          isSaved: isSaved,
+          onToggleSave: () => _toggleSaveJob(j.id),
+        );
+      },
     );
   }
 

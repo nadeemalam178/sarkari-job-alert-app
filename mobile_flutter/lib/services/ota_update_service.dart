@@ -28,7 +28,7 @@ class OtaUpdateInfo {
 typedef DownloadProgressCallback = void Function(int receivedBytes, int totalBytes, double progress);
 
 class OtaUpdateService {
-  static const String currentVersion = '2.3.1';
+  static const String currentVersion = '2.3.2';
   static const String githubRepo = 'nadeemalam178/sarkari-job-alert-app';
   static const MethodChannel _otaChannel = MethodChannel('com.sarkari.jobalert/ota');
 

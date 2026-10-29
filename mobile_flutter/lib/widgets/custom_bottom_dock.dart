@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
-import 'motion_spells.dart';
 
 class CustomBottomDock extends StatelessWidget {
   final int currentIndex;
@@ -70,9 +69,9 @@ class CustomBottomDock extends StatelessWidget {
     final activeColor = palette.accentPrimary;
     final inactiveColor = palette.textSecondary;
 
-    return TactilePress(
-      scaleFactor: 0.92,
+    return GestureDetector(
       onTap: onTap,
+      behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 220),
         curve: Curves.easeOutCubic,
