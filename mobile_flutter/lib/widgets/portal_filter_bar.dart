@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
 
 class PortalFilterBar extends StatelessWidget {
   final String selectedSource;
@@ -19,6 +20,8 @@ class PortalFilterBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+
     return Container(
       height: 44,
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -33,20 +36,22 @@ class PortalFilterBar extends StatelessWidget {
             label: Text(portal['label']!),
             selected: isSelected,
             onSelected: (_) => onSourceSelected(portal['id']!),
-            selectedColor: const Color(0xFF2563EB),
-            backgroundColor: const Color(0xFF131D2E),
+            selectedColor: palette.isDark ? const Color(0xFFAAA2B3) : const Color(0xFF292531),
+            backgroundColor: palette.isDark ? const Color(0xFF292531) : Colors.white,
             labelStyle: TextStyle(
               fontSize: 12,
               fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-              color: isSelected ? Colors.white : const Color(0xFF94A3B8),
+              color: isSelected
+                  ? (palette.isDark ? const Color(0xFF17151C) : Colors.white)
+                  : palette.textSecondary,
             ),
             side: BorderSide(
               color: isSelected
-                  ? const Color(0xFF3B82F6)
-                  : const Color(0xFF1E2D44),
+                  ? (palette.isDark ? const Color(0xFFAAA2B3) : const Color(0xFF292531))
+                  : (palette.isDark ? const Color(0xFF45404F) : const Color(0xFFD3CBD8)),
               width: 1,
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
