@@ -6,8 +6,6 @@ import 'theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Reset app state so it opens at create candidate account section as requested!
-  await StorageService.resetApp();
   runApp(const SarkariJobAlertApp());
 }
 

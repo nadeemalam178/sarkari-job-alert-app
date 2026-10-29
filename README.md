@@ -1,91 +1,134 @@
-# 🎯 Sarkari Result Qualification-Based Job Alert App
+# 🏛️ Sarkari Job Alert Mobile App (v2.0.0)
 
-An automated, multi-platform system that continuously monitors **Sarkari Result**, **FreeJobAlert**, and **RojgarResult**, filters out non-job noise (results, admit cards), matches posts against your specific qualifications (B.Ed, CTET, STET, Graduate, 10th, 12th, MCA, BCA, B.Tech, etc.), and immediately delivers alerts to your phone lockscreen and browser.
+[![Flutter](https://img.shields.io/badge/Flutter-3.13+-02569B?logo=flutter&logoColor=white)](https://flutter.dev)
+[![Dart](https://img.shields.io/badge/Dart-3.0+-0175C2?logo=dart&logoColor=white)](https://dart.dev)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![GitHub Release](https://img.shields.io/github/v/release/nadeemalam178/sarkari-job-alert-app?color=blue&logo=github)](https://github.com/nadeemalam178/sarkari-job-alert-app/releases/latest)
 
----
-
-## 🌟 Key Features
-
-- **📱 Mobile App Layout (Bottom Dock & Slide-Out Side Panel)**:
-  - **Floating Dock Navigation**: Modern iOS/Android style bottom dock bar for quick thumb access to For You, All Jobs, Education, and Alerts.
-  - **Slide-Out Side Panel (Drawer)**: Clean slide-in menu with candidate profile, portal filter chips (SarkariResult ★, FreeJobAlert, RojgarResult), and Wi-Fi phone link.
-- **⚡ Live Phone Debugging with Expo (`expo-mobile/`)**:
-  - Run `start-expo.bat` and scan the QR code with **Expo Go** on your physical Android or iPhone.
-  - Instant live debugging and fast-reload directly on your phone!
-  - In-app server IP switcher to connect to your computer on any Wi-Fi.
-- **🎓 Smart Qualification Matcher (50+ Indian Govt Job Degrees)**:
-  - Highest qualification selector + live autosuggest search for specific degrees.
-  - Automatic downward eligibility (Graduates automatically match general 12th/10th openings).
-- **🚫 Strict Non-Job Exclusion**:
-  - Excludes admit cards, results, scorecards, allotments, scholarships, and syllabi.
-  - **100% active recruitment vacancies only**.
-- **🥇 Sarkari Result Priority & Cross-Portal Deduplication**:
-  - Normalized deduplication across portals, always prioritizing Sarkari Result links with `SarkariResult ★` badge.
-- **🔔 Phone Lock Screen Push via `ntfy.sh` (100% Free / Zero Play Store)**:
-  - Instant push notifications to phone lock screen with vibration and direct apply links.
+An ultra-fast, cross-platform Flutter application and Python automation suite for Indian government job aspirants. Continuously scrapes and parses recruitment notices from **SarkariResult**, **FreeJobAlert**, and **RojgarResult**, filters out non-job clutter (admit cards, answer keys, results), and maps vacancies to candidates using an intelligent qualification hierarchy engine.
 
 ---
 
-## 🚀 Quick Start (Local PC)
+## ✨ Key Features
 
-### 1. Start Backend & Web App
-Double-click `run.bat` (or run `python app.py`).
-Open **`http://localhost:5000`** in your browser.
+### 💎 Tactile Glassmorphism Design
+- **Adaptive Theme System**: True dynamic switching between **Dark**, **Light**, and **System Auto** modes.
+- **Glassmorphic Cards**: Frosted acrylic containers with ambient glow borders, high contrast badges, and tactile haptic feedback.
+- **3D Sovereign Superellipse Icon**: Premium Apple/Google-grade 3D metallic golden bell emblem with Ashoka crest and specular glass reflections.
+- **Fluid Opening Transitions**: Seamless branded splash screen with `TactileFadeSlide` cubic easing transitions.
 
-### 2. Debug Live on Your Phone via Expo Go
-1. Install the free **Expo Go** app from Google Play Store or App Store.
-2. Ensure phone & PC are on the same Wi-Fi.
-3. Double-click `start-expo.bat` in this folder.
-4. Scan the QR code in the terminal with Expo Go. The app runs live on your phone!
+### 🎓 Smart Qualification Matcher (RRB NTPC & Graduate Support)
+- **Hierarchical Stream Matching**: Candidates with specific degrees (e.g. `B.SC`, `B.TECH`, `B.COM`) automatically qualify for general `GRADUATE` posts, including:
+  - **RRB NTPC Graduate Vacancies** (Station Master, Goods Train Manager, Senior Clerk)
+  - **SSC CGL & CHSL Openings**
+  - **UPSC & State PSC Recruitments**
+  - Downward eligibility for general 12th/10th posts without manual reconfiguration.
+- **Custom Qualification Management**: Update qualifications in real time from the Profile screen to recalculate matched vacancies on the fly.
+
+### 📋 Detailed Vacancy Intelligence
+Each job card opens an interactive detail container showing:
+- 📅 **Important Dates**: Application begin date and last date of submission.
+- 👥 **Total Vacancies**: Total post counts extracted from official tables.
+- 💰 **Application Fee & Age Limits**: Category-wise fee breakdown and age bracket rules.
+- 🔗 **Action Links**: Direct **Apply Online**, **Download Notification (PDF)**, and **Official Website** buttons.
+
+### 🧭 Intuitive Tab Navigation
+- **Home Tab**: Candidate command center featuring urgent deadline alerts, stream-matched recommendations, and quick sector pills (Railways, SSC, Banking, Defense, State PSC).
+- **Explore Tab**: Real-time recruitment search engine with instant query matching, portal filtering chips (`SarkariResult ★`, `FreeJobAlert`, `RojgarResult`), and complete directory access.
+- **Center Sync Dock**: Single, deduplicated live vacancy sync action at the center of the bottom dock.
+- **Profile Tab**: Candidate credentials, qualification stream selector, system theme toggles, and notification settings.
 
 ---
 
-## 📱 How to Get Mobile Lockscreen Alerts on Your Phone
+## 📥 Download Standalone Android APK
 
-1. Install the free **ntfy** app on your phone:
-   - [ntfy on Google Play](https://play.google.com/store/apps/details?id=io.heckel.ntfy)
-2. In the app, tap **+ (Subscribe to topic)** and enter your topic name (default: `sarkari_job_alert_user`).
-3. You will receive real-time push alerts whenever matching jobs are posted.
+Get the pre-compiled Android release APK directly from our GitHub Releases:
+
+👉 **[Download Latest APK (v2.0.0)](https://github.com/nadeemalam178/sarkari-job-alert-app/releases/latest)**
+
+1. Download `SarkariJobAlert-v2.0.0.apk` to your Android device.
+2. Open the file and tap **Install** (allow installation from browser if prompted).
+3. Open the app to access instant Sarkari job alerts!
 
 ---
 
-## 📦 How to Build the Standalone Android APK
+## 📱 Candidate Demo Login
 
-### Option 1: Expo Cloud Build (EAS Build - Recommended)
-Inside `expo-mobile/`:
+The application comes pre-configured with a quick-fill demo candidate profile:
+
+| Field | Demo Credential |
+|---|---|
+| **Candidate Email** | `nadeem.aspirant@sarkarialert.in` |
+| **Password** | `Sarkari@2026` |
+| **Mobile Number** | `+91 98765 43210` |
+| **Highest Degree** | `B.SC (Bachelor of Science)` |
+
+> **Tip**: Tap **1-Tap Auto Fill Demo** or **Google Sign-In** on the welcome screen to instantly log in.
+
+---
+
+## 🛠️ Local Development & Build
+
+### Prerequisites
+- [Flutter SDK](https://docs.flutter.dev/get-started/install) (3.13 or higher)
+- [Android SDK / Android Studio](https://developer.android.com/studio)
+- Python 3.10+ (for backend scraper and API)
+
+### 1. Run the Mobile App (Flutter)
 ```bash
-npm install -g eas-cli
-eas login
-eas build -p android --profile preview
+cd mobile_flutter
+flutter pub get
+flutter run
 ```
-Expo compiles the `.apk` in the cloud and gives you a direct download link!
 
-### Option 2: 1-Click Fast Online APK (PWABuilder)
-Paste your live Vercel/Netlify URL into [PWABuilder.com](https://www.pwabuilder.com/) and download the APK package.
+### 2. Compile Release APK
+```bash
+cd mobile_flutter
+flutter build apk --release
+```
+The optimized release APK will be located at:
+`mobile_flutter/build/app/outputs/flutter-apk/app-release.apk`
+
+### 3. Run Backend Scraper & Web Server (Optional)
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Start backend server
+python app.py
+```
+Open `http://localhost:5000` to view the companion web dashboard.
 
 ---
 
-## 📂 Project Structure
+## 📂 Project Architecture
 
 ```
 sarkari-job-alert-app/
-├── expo-mobile/              # React Native / Expo Mobile App for phone debugging
-│   ├── App.js                # Mobile app with WebView, IP switcher & native bridge
-│   ├── app.json              # Expo configuration (permissions, icons, theme)
-│   ├── package.json          # Expo SDK 52 dependencies
-│   └── start.bat             # 1-click Expo runner
-├── static/                   # Web PWA Frontend
-│   ├── index.html            # Mobile dock bar, slide-out drawer, SEO & schema
-│   ├── style.css             # Floating dock, slide-out side panel, glassmorphism
-│   ├── app.js                # Reactive state, audio chime & qualification autosuggest
-│   ├── sw.js                 # PWA Service worker
-│   ├── manifest.json         # PWA Manifest
-│   └── sitemap.xml           # Google Search Console sitemap
-├── scraper.py                # Multi-portal scraper with Sarkari Result priority
-├── database.py               # SQLite & user authentication manager
-├── notifier.py               # Phone lockscreen notification dispatcher
-├── app.py                    # Flask server
-├── start-expo.bat            # 1-click Expo phone runner
-├── run.bat                   # 1-click PC runner
+├── mobile_flutter/                  # Complete Flutter Native Mobile App
+│   ├── android/                     # Android Gradle setup & permissions
+│   ├── assets/icon/                 # High-resolution 3D app icons
+│   ├── lib/
+│   │   ├── models/                  # JobPost & Qualification data models
+│   │   ├── screens/
+│   │   │   ├── auth_screen.dart     # Candidate onboarding & Google auto-fill
+│   │   │   ├── main_dashboard_screen.dart # Home & Explore tabs
+│   │   │   ├── profile_screen.dart  # Stream selector & theme manager
+│   │   │   └── splash_screen.dart   # Branded 3D opening animation
+│   │   ├── services/                # API and local SharedPreferences storage
+│   │   ├── theme/                   # Glassmorphism design & color palette
+│   │   ├── utils/                   # Hierarchical qualification matching logic
+│   │   └── widgets/                 # Tactile cards, docks, sheets, filters
+│   └── pubspec.yaml                 # Dependencies & asset configuration
+├── static/                          # Companion Web Dashboard (PWA)
+├── scraper.py                       # Multi-portal scraper with date/fee/link extraction
+├── database.py                      # SQLite storage & user preferences engine
+├── app.py                           # Flask REST API server
 └── README.md
 ```
+
+---
+
+## 🛡️ License
+
+This project is licensed under the [MIT License](LICENSE).
