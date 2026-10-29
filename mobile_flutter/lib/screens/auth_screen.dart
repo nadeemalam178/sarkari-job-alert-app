@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../services/api_service.dart';
+import '../services/notification_service.dart';
 import '../services/storage_service.dart';
 import '../theme/app_theme.dart';
 import 'main_dashboard_screen.dart';
@@ -19,14 +21,24 @@ class AuthScreen extends StatefulWidget {
 }
 
 class _AuthScreenState extends State<AuthScreen> {
-  bool _isSignUp = true; // Opens at create account section as requested!
+  bool _isSignUp = true;
+  bool _isLoading = false;
+  bool _obscurePassword = true;
 
-  final _nameCtrl = TextEditingController(text: 'Nadeem Khan');
-  final _emailCtrl = TextEditingController(text: 'nadeem.aspirant@sarkarialert.in');
-  final _phoneCtrl = TextEditingController(text: '+91 98765 43210');
-  final _passwordCtrl = TextEditingController(text: 'Sarkari@2026');
+  final _nameCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController();
+  final _phoneCtrl = TextEditingController();
+  final _passwordCtrl = TextEditingController();
   String _selectedDegree = 'B.SC';
-  bool _notificationsPermissionGranted = true;
+
+  @override
+  void initState() {
+    super.initState();
+    // Prompt Android system runtime permission for notifications
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      NotificationService.requestPermission();
+    });
+  }
 
   @override
   void dispose() {
@@ -37,64 +49,116 @@ class _AuthScreenState extends State<AuthScreen> {
     super.dispose();
   }
 
-  void _quickFillDemo() {
-    setState(() {
-      _emailCtrl.text = 'nadeem.aspirant@sarkarialert.in';
-      _passwordCtrl.text = 'Sarkari@2026';
-      _nameCtrl.text = 'Nadeem Khan';
-      _phoneCtrl.text = '+91 98765 43210';
-      _selectedDegree = 'B.SC';
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Auto-inserted Candidate credentials & phone number'),
-        duration: Duration(seconds: 1),
-      ),
-    );
-  }
-
   Future<void> _submitAuth() async {
-    final name = _nameCtrl.text.trim();
     final email = _emailCtrl.text.trim();
-    final phone = _phoneCtrl.text.trim();
+    final password = _passwordCtrl.text;
 
-    if (email.isEmpty || _passwordCtrl.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter valid credentials')),
-      );
+    if (email.isEmpty || !email.contains('@') || !email.contains('.')) {
+      _showError('Please enter a valid email address');
       return;
     }
 
-    // Save profile with selected qualification (B.SC included)
-    await StorageService.updateCandidateProfile(
-      name: name.isNotEmpty ? name : 'Nadeem Khan',
-      email: email,
-      phone: phone.isNotEmpty ? phone : '+91 98765 43210',
-      category: 'General / OBC',
-      state: 'Central & All India States',
-      notifEnabled: _notificationsPermissionGranted,
-    );
-
-    // Ensure B.SC & Graduate are selected in qualifications
-    await StorageService.setSelectedQualifications([
-      _selectedDegree,
-      if (_selectedDegree == 'B.SC') 'GRADUATE',
-      '12TH / 10+2',
-    ]);
-
-    await StorageService.setLoggedIn(true);
-
-    if (mounted) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (ctx) => MainDashboardScreen(
-            onThemeChanged: widget.onThemeChanged,
-            currentThemeMode: widget.currentThemeMode,
-          ),
-        ),
-      );
+    if (password.length < 6) {
+      _showError('Password must be at least 6 characters');
+      return;
     }
+
+    setState(() => _isLoading = true);
+
+    try {
+      if (_isSignUp) {
+        final name = _nameCtrl.text.trim();
+        final phone = _phoneCtrl.text.trim();
+
+        if (name.isEmpty) {
+          _showError('Please enter your full name');
+          setState(() => _isLoading = false);
+          return;
+        }
+
+        if (phone.isEmpty || phone.length < 10) {
+          _showError('Please enter a valid 10-digit mobile number');
+          setState(() => _isLoading = false);
+          return;
+        }
+
+        // Register in local store
+        final localRes = await StorageService.registerNewAccount(
+          name: name,
+          email: email,
+          password: password,
+          phone: phone,
+          qualification: _selectedDegree,
+        );
+
+        if (localRes['success'] != true) {
+          _showError(localRes['error'] ?? 'Registration failed');
+          setState(() => _isLoading = false);
+          return;
+        }
+
+        // Also register in backend database asynchronously
+        ApiService.register(
+          name: name,
+          email: email,
+          password: password,
+          phone: phone,
+          highestQualification: _selectedDegree,
+          qualifications: [_selectedDegree, if (_selectedDegree == 'B.SC') 'GRADUATE', '12TH / 10+2'],
+        ).catchError((_) => {'success': false});
+      } else {
+        // Sign In
+        // Try backend login first, fallback to local registered accounts
+        var loginRes = await ApiService.login(email: email, password: password);
+
+        if (loginRes['success'] == true) {
+          final user = loginRes['user'] ?? {};
+          await StorageService.updateCandidateProfile(
+            name: user['name'] ?? 'Candidate',
+            email: email,
+            phone: user['phone'] ?? '',
+            qualification: user['highest_qualification'] ?? 'GRADUATE',
+          );
+          await StorageService.setLoggedIn(true);
+        } else {
+          // Verify with local registered store
+          final localLogin = await StorageService.loginAccount(
+            email: email,
+            password: password,
+          );
+
+          if (localLogin['success'] != true) {
+            _showError(localLogin['error'] ?? 'Account does not exist. Please create an account first.');
+            setState(() => _isLoading = false);
+            return;
+          }
+        }
+      }
+
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (ctx) => MainDashboardScreen(
+              onThemeChanged: widget.onThemeChanged,
+              currentThemeMode: widget.currentThemeMode,
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _showError(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: const Color(0xFFEF4444),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   @override
@@ -104,407 +168,327 @@ class _AuthScreenState extends State<AuthScreen> {
     return Scaffold(
       backgroundColor: palette.background,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 10),
-
-              // 1. Logo & App Branding Header
-              Center(
-                child: Column(
-                  children: [
-                    Container(
-                      width: 76,
-                      height: 76,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF2563EB), Color(0xFF0284C7)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF2563EB).withValues(alpha: 0.4),
-                            blurRadius: 20,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
-                        border: Border.all(color: const Color(0xFF38BDF8), width: 2),
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // App Emblem
+                  Container(
+                    width: 76,
+                    height: 76,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: palette.isDark
+                            ? const [Color(0xFF45404F), Color(0xFF292531)]
+                            : const [Color(0xFF716879), Color(0xFF45404F)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
-                      child: const Center(
-                        child: Icon(
-                          Icons.notifications_active_rounded,
-                          size: 40,
-                          color: Color(0xFFFBBF24),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    Text(
-                      'Sarkari Job Alert',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                        color: palette.textPrimary,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      'Govt Recruitment & Gazette Engine',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: palette.textSecondary,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // 2. Active Credentials Card (Directly lists credentials requested)
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1E293B).withValues(alpha: palette.isDark ? 0.7 : 0.08),
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(
-                    color: const Color(0xFF38BDF8).withValues(alpha: 0.5),
-                    width: 1.2,
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.key_rounded, size: 18, color: Color(0xFF38BDF8)),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Your Demo Candidate Credentials',
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w700,
-                            color: palette.isDark ? Colors.white : const Color(0xFF0F172A),
-                          ),
-                        ),
-                        const Spacer(),
-                        InkWell(
-                          onTap: _quickFillDemo,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF2563EB).withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Text(
-                              'Auto-Fill',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF60A5FA),
-                              ),
-                            ),
-                          ),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.3),
+                          blurRadius: 18,
+                          offset: const Offset(0, 6),
                         ),
                       ],
-                    ),
-                    const SizedBox(height: 10),
-                    _buildCredRow('Candidate ID', 'nadeem.aspirant@sarkarialert.in'),
-                    const SizedBox(height: 4),
-                    _buildCredRow('Password', 'Sarkari@2026'),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // 3. Segmented Tab Selector: Create Account vs Sign In
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: palette.isDark ? const Color(0xFF131D2E) : const Color(0xFFE2E8F0),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => setState(() => _isSignUp = true),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          decoration: BoxDecoration(
-                            color: _isSignUp ? const Color(0xFF2563EB) : Colors.transparent,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Center(
-                            child: Text(
-                              'Create Account',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: _isSignUp ? Colors.white : palette.textSecondary,
-                              ),
-                            ),
-                          ),
-                        ),
+                      border: Border.all(
+                        color: palette.cardBorder,
+                        width: 1.5,
                       ),
                     ),
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () => setState(() => _isSignUp = false),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          decoration: BoxDecoration(
-                            color: !_isSignUp ? const Color(0xFF2563EB) : Colors.transparent,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Center(
-                            child: Text(
-                              'Sign In',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: !_isSignUp ? Colors.white : palette.textSecondary,
-                              ),
-                            ),
-                          ),
-                        ),
+                    child: const Center(
+                      child: Icon(
+                        Icons.notifications_active_rounded,
+                        size: 38,
+                        color: Color(0xFFFBBF24),
                       ),
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 18),
+                  ),
+                  const SizedBox(height: 16),
 
-              // 4. Glassmorphic Form Card
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: palette.glassDecoration(radius: 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Google 1-Tap Auto-Insert Pill
-                    if (_isSignUp) ...[
-                      InkWell(
-                        onTap: _quickFillDemo,
-                        borderRadius: BorderRadius.circular(14),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF0F172A).withValues(alpha: palette.isDark ? 0.8 : 0.05),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
-                          ),
-                          child: Row(
-                            children: const [
-                              Icon(Icons.g_mobiledata_rounded, color: Color(0xFF10B981), size: 24),
-                              SizedBox(width: 8),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Google Account Verified',
-                                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF34D399)),
-                                    ),
-                                    Text(
-                                      'Auto-insert phone number & email',
-                                      style: TextStyle(fontSize: 10.5, color: Color(0xFF94A3B8)),
-                                    ),
-                                  ],
+                  Text(
+                    'Sarkari Job Alert',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                      color: palette.textPrimary,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+
+                  Text(
+                    'Official Government Recruitment Portal',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: palette.textSecondary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Segmented Switch: Create Account vs Sign In
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: palette.surfaceGlass,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: palette.cardBorder),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            onTap: () => setState(() => _isSignUp = true),
+                            borderRadius: BorderRadius.circular(12),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              decoration: BoxDecoration(
+                                color: _isSignUp
+                                    ? (palette.isDark ? const Color(0xFF45404F) : const Color(0xFF292531))
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                'Create Account',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: _isSignUp ? FontWeight.w700 : FontWeight.w500,
+                                  color: _isSignUp
+                                      ? (palette.isDark ? const Color(0xFFF3EEF8) : Colors.white)
+                                      : palette.textSecondary,
                                 ),
                               ),
-                              Icon(Icons.check_circle_rounded, size: 16, color: Color(0xFF10B981)),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-
-                      // Name Field
-                      _buildTextField(
-                        controller: _nameCtrl,
-                        label: 'Candidate Full Name',
-                        icon: Icons.person_outline_rounded,
-                        palette: palette,
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Phone Field (Automatic insertion)
-                      _buildTextField(
-                        controller: _phoneCtrl,
-                        label: 'Mobile Number (for SMS & OTP Alerts)',
-                        icon: Icons.phone_android_rounded,
-                        palette: palette,
-                        suffix: const Icon(Icons.check_circle, color: Color(0xFF10B981), size: 18),
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Degree Stream Picker
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: palette.isDark ? const Color(0xFF0A0F1D) : Colors.white,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: palette.cardBorder),
-                        ),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            value: _selectedDegree,
-                            dropdownColor: palette.isDark ? const Color(0xFF131D2E) : Colors.white,
-                            style: TextStyle(
-                              color: palette.textPrimary,
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.w600,
                             ),
-                            icon: Icon(Icons.arrow_drop_down_rounded, color: palette.accentBlue),
-                            isExpanded: true,
-                            items: const [
-                              DropdownMenuItem(value: 'B.SC', child: Text('B.Sc (Bachelor of Science) - All RRB & UPSC')),
-                              DropdownMenuItem(value: 'GRADUATE', child: Text('Graduate in Any Stream (BA / B.Com / B.Tech)')),
-                              DropdownMenuItem(value: 'B.TECH / B.E', child: Text('B.Tech / B.E (Engineering)')),
-                              DropdownMenuItem(value: '12TH / 10+2', child: Text('12th Pass / Intermediate')),
-                              DropdownMenuItem(value: '10TH', child: Text('10th Pass / High School')),
-                            ],
-                            onChanged: (val) {
-                              if (val != null) setState(() => _selectedDegree = val);
-                            },
                           ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                    ],
-
-                    // Email Field
-                    _buildTextField(
-                      controller: _emailCtrl,
-                      label: 'Email Address / Candidate ID',
-                      icon: Icons.email_outlined,
-                      palette: palette,
-                    ),
-                    const SizedBox(height: 12),
-
-                    // Password Field
-                    _buildTextField(
-                      controller: _passwordCtrl,
-                      label: 'Password',
-                      icon: Icons.lock_outline_rounded,
-                      isPassword: true,
-                      palette: palette,
-                    ),
-                    const SizedBox(height: 14),
-
-                    // System Notification Permission checkbox
-                    Row(
-                      children: [
-                        Checkbox(
-                          value: _notificationsPermissionGranted,
-                          activeColor: const Color(0xFF2563EB),
-                          onChanged: (v) => setState(() => _notificationsPermissionGranted = v ?? true),
                         ),
                         Expanded(
-                          child: Text(
-                            'Grant Android system notification permission for instant vacancy alerts',
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              color: palette.textSecondary,
+                          child: InkWell(
+                            onTap: () => setState(() => _isSignUp = false),
+                            borderRadius: BorderRadius.circular(12),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              decoration: BoxDecoration(
+                                color: !_isSignUp
+                                    ? (palette.isDark ? const Color(0xFF45404F) : const Color(0xFF292531))
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                'Sign In',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: !_isSignUp ? FontWeight.w700 : FontWeight.w500,
+                                  color: !_isSignUp
+                                      ? (palette.isDark ? const Color(0xFFF3EEF8) : Colors.white)
+                                      : palette.textSecondary,
+                                ),
+                              ),
                             ),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
-
-                    // Submit Button
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF2563EB),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                        elevation: 4,
-                      ),
-                      onPressed: _submitAuth,
-                      child: Text(
-                        _isSignUp ? 'Create Account & Start Matching' : 'Sign In to Portal',
-                        style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Production footer
-              Center(
-                child: Text(
-                  'Verified Gazette & Official Recruitment Network • India',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: palette.textSecondary.withValues(alpha: 0.7),
                   ),
-                ),
+                  const SizedBox(height: 20),
+
+                  // Form Container
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: palette.glassDecoration(radius: 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (_isSignUp) ...[
+                          _buildFieldLabel('Full Name', palette),
+                          const SizedBox(height: 6),
+                          _buildTextField(
+                            controller: _nameCtrl,
+                            hint: 'Enter your legal full name',
+                            icon: Icons.person_outline_rounded,
+                            palette: palette,
+                          ),
+                          const SizedBox(height: 14),
+                        ],
+
+                        _buildFieldLabel('Email Address', palette),
+                        const SizedBox(height: 6),
+                        _buildTextField(
+                          controller: _emailCtrl,
+                          hint: 'aspirant@example.com',
+                          icon: Icons.mail_outline_rounded,
+                          keyboardType: TextInputType.emailAddress,
+                          palette: palette,
+                        ),
+                        const SizedBox(height: 14),
+
+                        if (_isSignUp) ...[
+                          _buildFieldLabel('Mobile Number', palette),
+                          const SizedBox(height: 6),
+                          _buildTextField(
+                            controller: _phoneCtrl,
+                            hint: '10-digit mobile number',
+                            icon: Icons.phone_outlined,
+                            keyboardType: TextInputType.phone,
+                            palette: palette,
+                          ),
+                          const SizedBox(height: 14),
+
+                          _buildFieldLabel('Highest Qualification Stream', palette),
+                          const SizedBox(height: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                            decoration: BoxDecoration(
+                              color: palette.isDark ? const Color(0xFF17151C) : Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: palette.cardBorder),
+                            ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<String>(
+                                value: _selectedDegree,
+                                isExpanded: true,
+                                dropdownColor: palette.isDark ? const Color(0xFF292531) : Colors.white,
+                                items: const [
+                                  DropdownMenuItem(value: 'B.SC', child: Text('B.Sc (Bachelor of Science)')),
+                                  DropdownMenuItem(value: 'GRADUATE', child: Text('Graduate (Any Degree / BA / BCom)')),
+                                  DropdownMenuItem(value: '12TH / 10+2', child: Text('12th Pass / Intermediate')),
+                                  DropdownMenuItem(value: '10TH', child: Text('10th Pass / Matriculation')),
+                                  DropdownMenuItem(value: 'B.TECH / B.E', child: Text('B.Tech / B.E (Engineering)')),
+                                  DropdownMenuItem(value: 'B.ED', child: Text('B.Ed / Teaching Degree')),
+                                  DropdownMenuItem(value: 'POST GRADUATE', child: Text('Post Graduate / Master Degree')),
+                                  DropdownMenuItem(value: 'DIPLOMA', child: Text('Polytechnic / Diploma')),
+                                ],
+                                onChanged: (val) {
+                                  if (val != null) setState(() => _selectedDegree = val);
+                                },
+                                style: TextStyle(
+                                  color: palette.textPrimary,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                        ],
+
+                        _buildFieldLabel('Password', palette),
+                        const SizedBox(height: 6),
+                        _buildTextField(
+                          controller: _passwordCtrl,
+                          hint: 'Enter your secure password',
+                          icon: Icons.lock_outline_rounded,
+                          obscureText: _obscurePassword,
+                          palette: palette,
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                              size: 18,
+                              color: palette.textSecondary,
+                            ),
+                            onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                          ),
+                        ),
+                        const SizedBox(height: 22),
+
+                        // Action Button
+                        SizedBox(
+                          width: double.infinity,
+                          height: 48,
+                          child: FilledButton(
+                            onPressed: _isLoading ? null : _submitAuth,
+                            style: FilledButton.styleFrom(
+                              backgroundColor: palette.isDark ? const Color(0xFF45404F) : const Color(0xFF292531),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                              elevation: 0,
+                            ),
+                            child: _isLoading
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                  )
+                                : Text(
+                                    _isSignUp ? 'Create Candidate Account' : 'Sign In to Portal',
+                                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                                  ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  Text(
+                    'Direct access to RRB, SSC, UPSC & State PSC Vacancies',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: palette.textSecondary,
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildCredRow(String label, String val) {
-    return Row(
-      children: [
-        Text(
-          '$label: ',
-          style: const TextStyle(fontSize: 11.5, color: Color(0xFF94A3B8), fontWeight: FontWeight.w500),
-        ),
-        Text(
-          val,
-          style: const TextStyle(
-            fontSize: 12,
-            fontFamily: 'monospace',
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF38BDF8),
-          ),
-        ),
-      ],
+  Widget _buildFieldLabel(String label, AppPalette palette) {
+    return Text(
+      label,
+      style: TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+        color: palette.textPrimary,
+      ),
     );
   }
 
   Widget _buildTextField({
     required TextEditingController controller,
-    required String label,
+    required String hint,
     required IconData icon,
     required AppPalette palette,
-    bool isPassword = false,
-    Widget? suffix,
+    bool obscureText = false,
+    TextInputType keyboardType = TextInputType.text,
+    Widget? suffixIcon,
   }) {
     return TextField(
       controller: controller,
-      obscureText: isPassword,
-      style: TextStyle(color: palette.textPrimary, fontSize: 13.5),
+      obscureText: obscureText,
+      keyboardType: keyboardType,
+      style: TextStyle(fontSize: 13, color: palette.textPrimary),
       decoration: InputDecoration(
-        labelText: label,
-        labelStyle: TextStyle(color: palette.textSecondary, fontSize: 12.5),
-        prefixIcon: Icon(icon, color: palette.accentBlue, size: 20),
-        suffixIcon: suffix,
+        hintText: hint,
+        hintStyle: TextStyle(fontSize: 12.5, color: palette.textSecondary.withValues(alpha: 0.7)),
+        prefixIcon: Icon(icon, size: 18, color: palette.textSecondary),
+        suffixIcon: suffixIcon,
         filled: true,
-        fillColor: palette.isDark ? const Color(0xFF0A0F1D) : Colors.white,
-        isDense: true,
+        fillColor: palette.isDark ? const Color(0xFF17151C) : Colors.white,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: palette.cardBorder),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: palette.cardBorder),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: palette.accentPrimary, width: 1.5),
         ),
       ),
     );

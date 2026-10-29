@@ -1,4 +1,4 @@
-# 🏛️ Sarkari Job Alert Mobile App (v2.0.0)
+# 🏛️ Sarkari Job Alert Mobile App (v2.1.0)
 
 [![Flutter](https://img.shields.io/badge/Flutter-3.13+-02569B?logo=flutter&logoColor=white)](https://flutter.dev)
 [![Dart](https://img.shields.io/badge/Dart-3.0+-0175C2?logo=dart&logoColor=white)](https://dart.dev)
@@ -9,61 +9,44 @@ An ultra-fast, cross-platform Flutter application and Python automation suite fo
 
 ---
 
-## ✨ Key Features
+## ✨ Key Features (v2.1.0)
 
-### 💎 Tactile Glassmorphism Design
-- **Adaptive Theme System**: True dynamic switching between **Dark**, **Light**, and **System Auto** modes.
-- **Glassmorphic Cards**: Frosted acrylic containers with ambient glow borders, high contrast badges, and tactile haptic feedback.
+### 💎 Tactile Glassmorphism & Aubergine-Slate Theme
+- **Deep 6-Tone Palette**: Custom dark/light surfaces calibrated to deep aubergine-slate tones (`#17151C`, `#292531`, `#45404F`, `#716879`, `#AAA2B3`, `#E2DDE7`).
+- **Dynamic Full-Screen Immersive Scroll**: As you scroll down through job listings, the top navigation header smoothly collapses UP and the bottom dock slides DOWN (`Curves.easeInOutCubic`), expanding the feed to 100% full-screen. Scrolling up instantly restores navigation.
+- **Glassmorphic Cards**: Frosted acrylic containers with ambient glow borders, high-contrast badges, and tactile haptic feedback.
 - **3D Sovereign Superellipse Icon**: Premium Apple/Google-grade 3D metallic golden bell emblem with Ashoka crest and specular glass reflections.
-- **Fluid Opening Transitions**: Seamless branded splash screen with `TactileFadeSlide` cubic easing transitions.
 
-### 🎓 Smart Qualification Matcher (RRB NTPC & Graduate Support)
-- **Hierarchical Stream Matching**: Candidates with specific degrees (e.g. `B.SC`, `B.TECH`, `B.COM`) automatically qualify for general `GRADUATE` posts, including:
-  - **RRB NTPC Graduate Vacancies** (Station Master, Goods Train Manager, Senior Clerk)
-  - **SSC CGL & CHSL Openings**
-  - **UPSC & State PSC Recruitments**
-  - Downward eligibility for general 12th/10th posts without manual reconfiguration.
-- **Custom Qualification Management**: Update qualifications in real time from the Profile screen to recalculate matched vacancies on the fly.
+### 🌐 Universal Explore Job Pool & Non-Blocking Instant Sync
+- **Unfiltered Multi-Portal Aggregator**: The **Explore** tab now displays all active postings across SarkariResult, FreeJobAlert, and RojgarResult without qualification restrictions, with automated cross-portal deduplication favoring verified SarkariResult posts.
+- **Pull-To-Refresh Synchronization**: Replaced clumsy sync buttons with native smooth pull-to-refresh (`RefreshIndicator`) on both Home and Explore tabs with animated feedback.
+- **Instant 0ms Cache Startup**: Cached listings render synchronously on cold launch, with automated non-blocking background sync keeping listings up to date.
 
-### 📋 Detailed Vacancy Intelligence
-Each job card opens an interactive detail container showing:
-- 📅 **Important Dates**: Application begin date and last date of submission.
-- 👥 **Total Vacancies**: Total post counts extracted from official tables.
-- 💰 **Application Fee & Age Limits**: Category-wise fee breakdown and age bracket rules.
-- 🔗 **Action Links**: Direct **Apply Online**, **Download Notification (PDF)**, and **Official Website** buttons.
+### 🚀 Over-The-Air (OTA) Updates & Compact Architecture APKs
+- **OTA Update Engine**: Built-in GitHub Releases integration (`OtaUpdateService`) checks for new releases directly from the Profile screen and enables seamless one-tap updates.
+- **Compact Split-per-ABI APKs**: Download sizes reduced by up to **65%** (~15–18 MB vs ~51 MB universal) targeting specific device architectures (`arm64-v8a`, `armeabi-v7a`, `x86_64`).
 
-### 🧭 Intuitive Tab Navigation
-- **Home Tab**: Candidate command center featuring urgent deadline alerts, stream-matched recommendations, and quick sector pills (Railways, SSC, Banking, Defense, State PSC).
-- **Explore Tab**: Real-time recruitment search engine with instant query matching, portal filtering chips (`SarkariResult ★`, `FreeJobAlert`, `RojgarResult`), and complete directory access.
-- **Center Sync Dock**: Single, deduplicated live vacancy sync action at the center of the bottom dock.
-- **Profile Tab**: Candidate credentials, qualification stream selector, system theme toggles, and notification settings.
+### 🔒 Clean Production Authentication & Native Notifications
+- **Production-Ready Security**: Zero dummy accounts, test emails, or pre-filled credentials. Authentic registration and sign-in flow connected to SQLite backend with password hashing.
+- **Native Android Notification Permission**: Automatic runtime permission request on modern Android devices (`POST_NOTIFICATIONS`) via Android 13+ native MethodChannel.
 
 ---
 
-## 📥 Download Standalone Android APK
+## 📥 Download Standalone Android APKs (v2.1.0)
 
-Get the pre-compiled Android release APK directly from our GitHub Releases:
+Direct download links from [GitHub Releases v2.1.0](https://github.com/nadeemalam178/sarkari-job-alert-app/releases/tag/v2.1.0):
 
-👉 **[Download Latest APK (v2.0.0)](https://github.com/nadeemalam178/sarkari-job-alert-app/releases/latest)**
+| Architecture | APK File | Size | Recommended Devices |
+|---|---|---|---|
+| **ARM64-v8a** (Most Popular) | [Download ARM64 APK](https://github.com/nadeemalam178/sarkari-job-alert-app/releases/download/v2.1.0/SarkariJobAlert-v2.1.0-arm64-v8a.apk) | **~18.0 MB** | Modern 64-bit phones (Pixel, OnePlus, Samsung, Xiaomi, Realme, etc.) |
+| **ARMv7a** (Legacy 32-bit) | [Download ARMv7a APK](https://github.com/nadeemalam178/sarkari-job-alert-app/releases/download/v2.1.0/SarkariJobAlert-v2.1.0-armeabi-v7a.apk) | **~15.5 MB** | Older 32-bit Android smartphones |
+| **x86_64** (Emulators) | [Download x86_64 APK](https://github.com/nadeemalam178/sarkari-job-alert-app/releases/download/v2.1.0/SarkariJobAlert-v2.1.0-x86_64.apk) | **~19.4 MB** | Android Emulators, Windows Subsystem for Android, Chromebooks |
+| **Universal** (All CPUs) | [Download Universal APK](https://github.com/nadeemalam178/sarkari-job-alert-app/releases/download/v2.1.0/SarkariJobAlert-v2.1.0-universal.apk) | ~51.1 MB | Compatible with all Android devices |
 
-1. Download `SarkariJobAlert-v2.0.0.apk` to your Android device.
-2. Open the file and tap **Install** (allow installation from browser if prompted).
-3. Open the app to access instant Sarkari job alerts!
-
----
-
-## 📱 Candidate Demo Login
-
-The application comes pre-configured with a quick-fill demo candidate profile:
-
-| Field | Demo Credential |
-|---|---|
-| **Candidate Email** | `nadeem.aspirant@sarkarialert.in` |
-| **Password** | `Sarkari@2026` |
-| **Mobile Number** | `+91 98765 43210` |
-| **Highest Degree** | `B.SC (Bachelor of Science)` |
-
-> **Tip**: Tap **1-Tap Auto Fill Demo** or **Google Sign-In** on the welcome screen to instantly log in.
+### Installation Instructions
+1. Download the architecture APK for your device (or Universal if unsure).
+2. Tap the downloaded `.apk` file and select **Install** (allow *Install unknown apps* if prompted).
+3. Register your aspirant account and begin receiving personalized Sarkari job alerts!
 
 ---
 
@@ -81,20 +64,21 @@ flutter pub get
 flutter run
 ```
 
-### 2. Compile Release APK
+### 2. Compile Release APKs
 ```bash
 cd mobile_flutter
+
+# Compile compact architecture-specific APKs (~15–18 MB each):
+flutter build apk --release --split-per-abi
+
+# Or compile universal APK (~51 MB):
 flutter build apk --release
 ```
-The optimized release APK will be located at:
-`mobile_flutter/build/app/outputs/flutter-apk/app-release.apk`
+Binaries will be placed in `mobile_flutter/build/app/outputs/flutter-apk/`.
 
 ### 3. Run Backend Scraper & Web Server (Optional)
 ```bash
-# Install dependencies
 pip install -r requirements.txt
-
-# Start backend server
 python app.py
 ```
 Open `http://localhost:5000` to view the companion web dashboard.
@@ -105,21 +89,25 @@ Open `http://localhost:5000` to view the companion web dashboard.
 
 ```
 sarkari-job-alert-app/
-├── mobile_flutter/                  # Complete Flutter Native Mobile App
-│   ├── android/                     # Android Gradle setup & permissions
+├── mobile_flutter/                  # Flutter Native Mobile App
+│   ├── android/                     # Android Gradle setup & native Notification channel
 │   ├── assets/icon/                 # High-resolution 3D app icons
 │   ├── lib/
 │   │   ├── models/                  # JobPost & Qualification data models
 │   │   ├── screens/
-│   │   │   ├── auth_screen.dart     # Candidate onboarding & Google auto-fill
-│   │   │   ├── main_dashboard_screen.dart # Home & Explore tabs
-│   │   │   ├── profile_screen.dart  # Stream selector & theme manager
+│   │   │   ├── auth_screen.dart     # Candidate sign-in & registration (clean authentication)
+│   │   │   ├── main_dashboard_screen.dart # Home & Explore tabs with scroll-collapse bars
+│   │   │   ├── profile_screen.dart  # Stream selector, OTA update checker & theme toggles
 │   │   │   └── splash_screen.dart   # Branded 3D opening animation
-│   │   ├── services/                # API and local SharedPreferences storage
-│   │   ├── theme/                   # Glassmorphism design & color palette
+│   │   ├── services/
+│   │   │   ├── api_service.dart     # Backend REST communications
+│   │   │   ├── storage_service.dart # Local SharedPreferences storage & cache
+│   │   │   ├── notification_service.dart # Runtime POST_NOTIFICATIONS permission
+│   │   │   └── ota_update_service.dart   # Over-the-air update manager via GitHub API
+│   │   ├── theme/                   # Glassmorphism design & aubergine-slate palette
 │   │   ├── utils/                   # Hierarchical qualification matching logic
 │   │   └── widgets/                 # Tactile cards, docks, sheets, filters
-│   └── pubspec.yaml                 # Dependencies & asset configuration
+│   └── pubspec.yaml                 # v2.1.0 dependencies & assets
 ├── static/                          # Companion Web Dashboard (PWA)
 ├── scraper.py                       # Multi-portal scraper with date/fee/link extraction
 ├── database.py                      # SQLite storage & user preferences engine

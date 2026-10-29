@@ -14,9 +14,11 @@ class StorageService {
   static const String _keyCandidatePhone = 'candidate_phone';
   static const String _keyCandidateCategory = 'candidate_category';
   static const String _keyCandidateState = 'candidate_state';
+  static const String _keyCandidateQualification = 'candidate_qualification';
   static const String _keyNotificationsEnabled = 'candidate_notif_enabled';
   static const String _keyIsLoggedIn = 'app_user_is_logged_in';
   static const String _keyNotificationBannerDismissed = 'notif_banner_dismissed';
+  static const String _keyRegisteredAccounts = 'registered_accounts_json';
 
   static Future<bool> isLoggedIn() async {
     final prefs = await SharedPreferences.getInstance();
@@ -44,10 +46,13 @@ class StorageService {
     await prefs.remove(_keyCandidateName);
     await prefs.remove(_keyCandidateEmail);
     await prefs.remove(_keyCandidatePhone);
+    await prefs.remove(_keyCandidateCategory);
+    await prefs.remove(_keyCandidateState);
+    await prefs.remove(_keyCandidateQualification);
     await prefs.remove(_keySavedJobIds);
+    await prefs.remove(_keyRegisteredAccounts);
     await prefs.setBool(_keyNotificationBannerDismissed, false);
-    // Set default degrees to include B.SC and GRADUATE
-    await prefs.setStringList(_keySelectedQuals, ['B.SC', 'GRADUATE', '12TH / 10+2']);
+    await prefs.setStringList(_keySelectedQuals, ['GRADUATE', '12TH / 10+2']);
   }
 
   static String getDefaultServerUrl() {
@@ -67,7 +72,7 @@ class StorageService {
     await prefs.setString(_keyServerUrl, url.trim());
   }
 
-  // --- Theme Mode (System auto-select default) ---
+  // --- Theme Mode ---
   static Future<String> getThemeMode() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_keyThemeMode) ?? 'system';
@@ -82,11 +87,12 @@ class StorageService {
   static Future<Map<String, String>> getCandidateProfile() async {
     final prefs = await SharedPreferences.getInstance();
     return {
-      'name': prefs.getString(_keyCandidateName) ?? 'Nadeem Khan',
-      'email': prefs.getString(_keyCandidateEmail) ?? 'nadeem.aspirant@sarkarialert.in',
-      'phone': prefs.getString(_keyCandidatePhone) ?? '+91 98765 43210',
+      'name': prefs.getString(_keyCandidateName) ?? 'Candidate',
+      'email': prefs.getString(_keyCandidateEmail) ?? '',
+      'phone': prefs.getString(_keyCandidatePhone) ?? '',
       'category': prefs.getString(_keyCandidateCategory) ?? 'General / OBC',
-      'state': prefs.getString(_keyCandidateState) ?? 'All India / Central & States',
+      'state': prefs.getString(_keyCandidateState) ?? 'All India',
+      'qualification': prefs.getString(_keyCandidateQualification) ?? 'GRADUATE',
       'notifEnabled': (prefs.getBool(_keyNotificationsEnabled) ?? true).toString(),
     };
   }
@@ -94,18 +100,110 @@ class StorageService {
   static Future<void> updateCandidateProfile({
     required String name,
     required String email,
-    String phone = '+91 98765 43210',
-    required String category,
-    required String state,
+    required String phone,
+    String category = 'General / OBC',
+    String state = 'All India',
+    String qualification = 'GRADUATE',
     bool notifEnabled = true,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyCandidateName, name.trim());
-    await prefs.setString(_keyCandidateEmail, email.trim());
+    await prefs.setString(_keyCandidateEmail, email.trim().toLowerCase());
     await prefs.setString(_keyCandidatePhone, phone.trim());
     await prefs.setString(_keyCandidateCategory, category.trim());
     await prefs.setString(_keyCandidateState, state.trim());
+    await prefs.setString(_keyCandidateQualification, qualification.trim());
     await prefs.setBool(_keyNotificationsEnabled, notifEnabled);
+  }
+
+  // --- Production Account Registration & Verification ---
+  static Future<Map<String, dynamic>> registerNewAccount({
+    required String name,
+    required String email,
+    required String password,
+    required String phone,
+    required String qualification,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final rawAccounts = prefs.getString(_keyRegisteredAccounts);
+    final Map<String, dynamic> accounts = rawAccounts != null ? jsonDecode(rawAccounts) : {};
+
+    final normalizedEmail = email.trim().toLowerCase();
+    if (accounts.containsKey(normalizedEmail)) {
+      return {'success': false, 'error': 'An account with this email already exists. Please sign in.'};
+    }
+
+    accounts[normalizedEmail] = {
+      'name': name.trim(),
+      'email': normalizedEmail,
+      'password': password,
+      'phone': phone.trim(),
+      'qualification': qualification.trim(),
+      'registered_at': DateTime.now().toIso8601String(),
+    };
+
+    await prefs.setString(_keyRegisteredAccounts, jsonEncode(accounts));
+
+    // Save active profile
+    await updateCandidateProfile(
+      name: name,
+      email: normalizedEmail,
+      phone: phone,
+      qualification: qualification,
+    );
+
+    // Save initial qualifications matching hierarchy
+    await setSelectedQualifications([
+      qualification,
+      if (qualification == 'B.SC') 'GRADUATE',
+      '12TH / 10+2',
+    ]);
+
+    await setLoggedIn(true);
+    return {'success': true};
+  }
+
+  static Future<Map<String, dynamic>> loginAccount({
+    required String email,
+    required String password,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final rawAccounts = prefs.getString(_keyRegisteredAccounts);
+    final Map<String, dynamic> accounts = rawAccounts != null ? jsonDecode(rawAccounts) : {};
+
+    final normalizedEmail = email.trim().toLowerCase();
+    if (!accounts.containsKey(normalizedEmail)) {
+      return {
+        'success': false,
+        'error': 'Account does not exist. Please create an account first.',
+      };
+    }
+
+    final account = accounts[normalizedEmail] as Map<String, dynamic>;
+    if (account['password'] != password) {
+      return {
+        'success': false,
+        'error': 'Incorrect password. Please verify and try again.',
+      };
+    }
+
+    // Set active candidate
+    await updateCandidateProfile(
+      name: account['name'] ?? 'Candidate',
+      email: normalizedEmail,
+      phone: account['phone'] ?? '',
+      qualification: account['qualification'] ?? 'GRADUATE',
+    );
+
+    final qual = account['qualification'] ?? 'GRADUATE';
+    await setSelectedQualifications([
+      qual,
+      if (qual == 'B.SC') 'GRADUATE',
+      '12TH / 10+2',
+    ]);
+
+    await setLoggedIn(true);
+    return {'success': true};
   }
 
   static Future<void> logout() async {
@@ -116,8 +214,9 @@ class StorageService {
     await prefs.remove(_keyCandidatePhone);
     await prefs.remove(_keyCandidateCategory);
     await prefs.remove(_keyCandidateState);
+    await prefs.remove(_keyCandidateQualification);
     await prefs.remove(_keySavedJobIds);
-    await prefs.setStringList(_keySelectedQuals, ['B.SC', 'GRADUATE', '12TH / 10+2']);
+    await prefs.setStringList(_keySelectedQuals, ['GRADUATE', '12TH / 10+2']);
   }
 
   static Future<List<String>> getSelectedQualifications() async {
@@ -138,36 +237,30 @@ class StorageService {
 
   static Future<void> toggleSaveJobId(int id) async {
     final prefs = await SharedPreferences.getInstance();
-    final saved = (await getSavedJobIds()).toSet();
-    if (saved.contains(id)) {
-      saved.remove(id);
+    final current = await getSavedJobIds();
+    if (current.contains(id)) {
+      current.remove(id);
     } else {
-      saved.add(id);
+      current.add(id);
     }
-    await prefs.setStringList(_keySavedJobIds, saved.map((e) => e.toString()).toList());
-  }
-
-  static Future<void> cacheJobs(List<JobPost> jobs) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final jsonList = jobs.map((j) => j.toJson()).toList();
-      await prefs.setString(_keyCachedJobs, jsonEncode(jsonList));
-    } catch (e) {
-      debugPrint('Cache error: $e');
-    }
+    await prefs.setStringList(_keySavedJobIds, current.map((e) => e.toString()).toList());
   }
 
   static Future<List<JobPost>> getCachedJobs() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_keyCachedJobs);
+    if (raw == null || raw.isEmpty) return [];
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final str = prefs.getString(_keyCachedJobs);
-      if (str != null && str.isNotEmpty) {
-        final List decoded = jsonDecode(str);
-        return decoded.map((e) => JobPost.fromJson(e)).toList();
-      }
-    } catch (e) {
-      debugPrint('Read cache error: $e');
+      final List list = jsonDecode(raw);
+      return list.map((e) => JobPost.fromJson(e)).toList();
+    } catch (_) {
+      return [];
     }
-    return [];
+  }
+
+  static Future<void> cacheJobs(List<JobPost> jobs) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = jsonEncode(jobs.map((e) => e.toJson()).toList());
+    await prefs.setString(_keyCachedJobs, raw);
   }
 }

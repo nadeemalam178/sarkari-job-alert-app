@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/qualification.dart';
+import '../services/ota_update_service.dart';
 import '../services/storage_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/qualification_picker_sheet.dart';
@@ -8,17 +9,17 @@ import '../widgets/qualification_picker_sheet.dart';
 class ProfileScreen extends StatefulWidget {
   final List<Qualification> allQualifications;
   final List<String> selectedQualifications;
+  final ThemeMode currentThemeMode;
   final ValueChanged<List<String>> onQualificationsChanged;
   final ValueChanged<ThemeMode> onThemeChanged;
-  final ThemeMode currentThemeMode;
 
   const ProfileScreen({
     super.key,
     required this.allQualifications,
     required this.selectedQualifications,
+    required this.currentThemeMode,
     required this.onQualificationsChanged,
     required this.onThemeChanged,
-    required this.currentThemeMode,
   });
 
   @override
@@ -28,10 +29,17 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   late List<String> _currentQuals;
   late ThemeMode _themeMode;
-  Map<String, String> _profileData = {};
-  bool _isLoading = true;
   bool _pushNotifications = true;
-  bool _admitCardAlerts = true;
+  bool _isCheckingOta = false;
+
+  Map<String, String> _profileData = {
+    'name': 'Candidate',
+    'email': '',
+    'phone': '',
+    'category': 'General / OBC',
+    'state': 'All India',
+  };
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -43,14 +51,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _loadProfile() async {
     final data = await StorageService.getCandidateProfile();
-    final themeStr = await StorageService.getThemeMode();
+    final modeStr = await StorageService.getThemeMode();
+
     if (mounted) {
       setState(() {
         _profileData = data;
         _pushNotifications = data['notifEnabled'] == 'true';
-        if (themeStr == 'dark') {
+        if (modeStr == 'dark') {
           _themeMode = ThemeMode.dark;
-        } else if (themeStr == 'light') {
+        } else if (modeStr == 'light') {
           _themeMode = ThemeMode.light;
         } else {
           _themeMode = ThemeMode.system;
@@ -58,6 +67,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _isLoading = false;
       });
     }
+  }
+
+  Future<void> _changeTheme(ThemeMode mode) async {
+    setState(() => _themeMode = mode);
+    widget.onThemeChanged(mode);
+    String modeStr = 'system';
+    if (mode == ThemeMode.dark) modeStr = 'dark';
+    if (mode == ThemeMode.light) modeStr = 'light';
+    await StorageService.setThemeMode(modeStr);
   }
 
   void _openQualificationPicker() {
@@ -68,164 +86,238 @@ class _ProfileScreenState extends State<ProfileScreen> {
           : Qualification.defaultMasterList,
       initialSelected: _currentQuals,
       onSaved: (newSelected) async {
+        setState(() => _currentQuals = newSelected);
         await StorageService.setSelectedQualifications(newSelected);
-        if (mounted) {
-          setState(() => _currentQuals = newSelected);
-        }
         widget.onQualificationsChanged(newSelected);
       },
     );
   }
 
-  void _changeTheme(ThemeMode mode) async {
-    setState(() => _themeMode = mode);
-    String modeStr = 'system';
-    if (mode == ThemeMode.dark) modeStr = 'dark';
-    if (mode == ThemeMode.light) modeStr = 'light';
-    await StorageService.setThemeMode(modeStr);
-    widget.onThemeChanged(mode);
+  Future<void> _checkOtaUpdate() async {
+    setState(() => _isCheckingOta = true);
+    final palette = AppPalette.of(context);
+
+    try {
+      final updateInfo = await OtaUpdateService.checkForUpdate();
+      if (!mounted) return;
+
+      if (updateInfo != null && updateInfo.hasUpdate) {
+        final sizeMb = (updateInfo.downloadSizeBytes / (1024 * 1024)).toStringAsFixed(1);
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: palette.surfaceGlassHigh,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Row(
+              children: [
+                const Icon(Icons.system_update_rounded, color: Color(0xFF10B981), size: 24),
+                const SizedBox(width: 10),
+                Text('Update Available (v${updateInfo.latestVersion})', style: TextStyle(fontSize: 16, color: palette.textPrimary, fontWeight: FontWeight.w700)),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('A new version of Sarkari Job Alert is available.', style: TextStyle(fontSize: 13, color: palette.textPrimary)),
+                const SizedBox(height: 8),
+                Text('Size: $sizeMb MB (Optimized Release)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: palette.accentPrimary)),
+                const SizedBox(height: 12),
+                Text(updateInfo.releaseNotes, style: TextStyle(fontSize: 11.5, color: palette.textSecondary), maxLines: 4, overflow: TextOverflow.ellipsis),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text('Later', style: TextStyle(color: palette.textSecondary)),
+              ),
+              FilledButton(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  OtaUpdateService.launchDownload(updateInfo.downloadUrl);
+                },
+                style: FilledButton.styleFrom(
+                  backgroundColor: palette.isDark ? const Color(0xFF45404F) : const Color(0xFF292531),
+                ),
+                child: const Text('Download APK'),
+              ),
+            ],
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('App is up to date (v2.0.0) • OTA Engine Active'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isCheckingOta = false);
+    }
   }
 
-  Future<void> _showEditProfileDialog() async {
+  void _showEditProfileDialog() {
     final nameCtrl = TextEditingController(text: _profileData['name'] ?? '');
     final emailCtrl = TextEditingController(text: _profileData['email'] ?? '');
     final phoneCtrl = TextEditingController(text: _profileData['phone'] ?? '');
-    final catCtrl = TextEditingController(text: _profileData['category'] ?? '');
-    final stateCtrl = TextEditingController(text: _profileData['state'] ?? '');
+    final stateCtrl = TextEditingController(text: _profileData['state'] ?? 'All India');
+    String category = _profileData['category'] ?? 'General / OBC';
 
-    final saved = await showDialog<bool>(
+    final palette = AppPalette.of(context);
+
+    showDialog(
       context: context,
-      builder: (ctx) {
-        final palette = AppPalette.of(ctx);
-        return AlertDialog(
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
           backgroundColor: palette.surfaceGlassHigh,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-            side: BorderSide(color: palette.cardBorder),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Text(
-            'Edit Candidate Info',
-            style: TextStyle(color: palette.textPrimary, fontWeight: FontWeight.w700),
+            'Edit Profile Details',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: palette.textPrimary,
+            ),
           ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildDialogField('Full Name', nameCtrl, palette),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 _buildDialogField('Email Address', emailCtrl, palette),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 _buildDialogField('Mobile Number', phoneCtrl, palette),
-                const SizedBox(height: 12),
-                _buildDialogField('Category (e.g. OBC / General)', catCtrl, palette),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 _buildDialogField('Target State / Region', stateCtrl, palette),
+                const SizedBox(height: 12),
+                Text(
+                  'Reservation Category',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: palette.textSecondary),
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: palette.isDark ? const Color(0xFF17151C) : Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: palette.cardBorder),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: category,
+                      isExpanded: true,
+                      dropdownColor: palette.isDark ? const Color(0xFF292531) : Colors.white,
+                      items: const [
+                        DropdownMenuItem(value: 'General / UR', child: Text('General / Unreserved')),
+                        DropdownMenuItem(value: 'General / OBC', child: Text('OBC (Other Backward Classes)')),
+                        DropdownMenuItem(value: 'EWS', child: Text('EWS (Economically Weaker Section)')),
+                        DropdownMenuItem(value: 'SC', child: Text('SC (Scheduled Caste)')),
+                        DropdownMenuItem(value: 'ST', child: Text('ST (Scheduled Tribe)')),
+                        DropdownMenuItem(value: 'Ex-Servicemen', child: Text('Ex-Servicemen (ESM)')),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) setDialogState(() => category = val);
+                      },
+                      style: TextStyle(color: palette.textPrimary, fontSize: 13, fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
+              onPressed: () => Navigator.pop(ctx),
               child: Text('Cancel', style: TextStyle(color: palette.textSecondary)),
             ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: palette.accentBlue,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            FilledButton(
+              onPressed: () async {
+                final navigator = Navigator.of(ctx);
+                await StorageService.updateCandidateProfile(
+                  name: nameCtrl.text.trim(),
+                  email: emailCtrl.text.trim(),
+                  phone: phoneCtrl.text.trim(),
+                  category: category,
+                  state: stateCtrl.text.trim(),
+                  notifEnabled: _pushNotifications,
+                );
+                navigator.pop();
+                if (mounted) _loadProfile();
+              },
+              style: FilledButton.styleFrom(
+                backgroundColor: palette.isDark ? const Color(0xFF45404F) : const Color(0xFF292531),
               ),
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Save Details', style: TextStyle(color: Colors.white)),
+              child: const Text('Save Details'),
             ),
           ],
-        );
-      },
-    );
-
-    if (saved == true) {
-      await StorageService.updateCandidateProfile(
-        name: nameCtrl.text,
-        email: emailCtrl.text,
-        phone: phoneCtrl.text,
-        category: catCtrl.text,
-        state: stateCtrl.text,
-        notifEnabled: _pushNotifications,
-      );
-      await _loadProfile();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Candidate profile updated successfully')),
-        );
-      }
-    }
-  }
-
-  Widget _buildDialogField(String label, TextEditingController ctrl, AppPalette palette) {
-    return TextField(
-      controller: ctrl,
-      style: TextStyle(color: palette.textPrimary, fontSize: 14),
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: TextStyle(color: palette.textSecondary, fontSize: 13),
-        filled: true,
-        fillColor: palette.isDark ? const Color(0xFF0A0F1D) : const Color(0xFFF1F5F9),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: palette.cardBorder),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: palette.cardBorder),
         ),
       ),
     );
   }
 
-  Future<void> _confirmLogout() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) {
-        final palette = AppPalette.of(ctx);
-        return AlertDialog(
-          backgroundColor: palette.surfaceGlassHigh,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-            side: BorderSide(color: palette.cardBorder),
+  Widget _buildDialogField(String label, TextEditingController ctrl, AppPalette palette) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: palette.textSecondary),
+        ),
+        const SizedBox(height: 4),
+        TextField(
+          controller: ctrl,
+          style: TextStyle(fontSize: 13, color: palette.textPrimary),
+          decoration: InputDecoration(
+            isDense: true,
+            filled: true,
+            fillColor: palette.isDark ? const Color(0xFF17151C) : Colors.white,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: palette.cardBorder)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: palette.cardBorder)),
           ),
-          title: Row(
-            children: [
-              Icon(Icons.logout_rounded, color: palette.accentRed, size: 24),
-              const SizedBox(width: 8),
-              Text('Log Out', style: TextStyle(color: palette.textPrimary, fontWeight: FontWeight.w700)),
-            ],
-          ),
-          content: Text(
-            'Are you sure you want to log out? You will be returned to the account login & registration section.',
-            style: TextStyle(color: palette.textSecondary, fontSize: 13.5),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text('Cancel', style: TextStyle(color: palette.textSecondary)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: palette.accentRed,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Log Out', style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        );
-      },
+        ),
+      ],
     );
+  }
 
-    if (confirmed == true) {
-      await StorageService.logout();
-      if (mounted) {
-        Navigator.pop(context, true); // Return true indicating logout
-      }
-    }
+  void _confirmLogout() {
+    final palette = AppPalette.of(context);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: palette.surfaceGlassHigh,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          'Log Out Candidate Session?',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: palette.textPrimary),
+        ),
+        content: Text(
+          'You will be returned to the Create Account / Sign In screen.',
+          style: TextStyle(fontSize: 13, color: palette.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Cancel', style: TextStyle(color: palette.textSecondary)),
+          ),
+          FilledButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await StorageService.logout();
+              if (mounted) {
+                Navigator.pop(context, true); // Signal logout to MainDashboardScreen
+              }
+            },
+            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFEF4444)),
+            child: const Text('Confirm Log Out'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -236,50 +328,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
       backgroundColor: palette.background,
       appBar: AppBar(
         title: Text(
-          'Candidate Profile',
+          'Candidate Profile & Settings',
           style: TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
             color: palette.textPrimary,
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
+            letterSpacing: -0.3,
           ),
         ),
-        centerTitle: true,
+        centerTitle: false,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded, color: palette.textPrimary, size: 20),
-          onPressed: () => Navigator.pop(context),
+          icon: Icon(Icons.arrow_back_rounded, color: palette.textPrimary),
+          onPressed: () => Navigator.pop(context, false),
         ),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.edit_outlined, color: palette.accentBlue, size: 22),
-            onPressed: _showEditProfileDialog,
-            tooltip: 'Edit Profile',
-          ),
-        ],
       ),
       body: _isLoading
-          ? Center(child: CircularProgressIndicator(color: palette.accentBlue))
+          ? Center(child: CircularProgressIndicator(color: palette.accentPrimary))
           : ListView(
-              padding: const EdgeInsets.fromLTRB(20, 10, 20, 32),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
               children: [
-                // 1. Candidate Avatar & Primary Badge
+                // 1. Candidate Header Card
                 _buildCandidateHeader(palette),
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
 
-                // 2. Candidate Identity & Details Card
+                // 2. Personal & Credentials Card
                 _buildCandidateDetailsCard(palette),
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
 
-                // 3. Qualifications & Eligibility (THE ONLY PLACE)
+                // 3. Educational Qualifications & Eligibility Streams Card
                 _buildQualificationsSection(palette),
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
 
-                // 4. App Settings (Theme Auto-Select, Notifications)
+                // 4. App Settings (System Theme Auto-select, Notifications, OTA)
                 _buildAppSettingsSection(palette),
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
 
                 // 5. Account Actions (Log Out)
                 _buildLogoutSection(palette),
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
 
                 // 6. Production App Metadata
                 _buildProductionFooter(palette),
@@ -289,101 +377,65 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildCandidateHeader(AppPalette palette) {
-    final name = _profileData['name'] ?? 'Nadeem Khan';
-    final state = _profileData['state'] ?? 'All India Aspirant';
+    final name = _profileData['name']?.isNotEmpty == true ? _profileData['name']! : 'Registered Candidate';
+    final state = _profileData['state']?.isNotEmpty == true ? _profileData['state']! : 'All India';
 
     return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: palette.glassDecoration(radius: 24),
+      padding: const EdgeInsets.all(18),
+      decoration: palette.glassDecoration(radius: 20),
       child: Row(
         children: [
-          Stack(
-            children: [
-              Container(
-                width: 68,
-                height: 68,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF2563EB), Color(0xFF0284C7)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  border: Border.all(color: const Color(0xFF38BDF8), width: 2),
-                ),
-                child: const Center(
-                  child: Icon(Icons.person_rounded, size: 38, color: Colors.white),
-                ),
-              ),
-              Positioned(
-                bottom: 0,
-                right: 0,
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF10B981),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.check, size: 10, color: Colors.white),
-                ),
-              ),
-            ],
+          Container(
+            width: 58,
+            height: 58,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: palette.surfaceGlassHigh,
+              border: Border.all(color: palette.cardBorder, width: 1.5),
+            ),
+            child: Center(
+              child: Icon(Icons.person_rounded, size: 32, color: palette.textPrimary),
+            ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        name,
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          color: palette.textPrimary,
-                          letterSpacing: -0.3,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: const Color(0x3310B981),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Text(
-                        'Verified',
-                        style: TextStyle(
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF10B981),
-                        ),
-                      ),
-                    ),
-                  ],
+                Text(
+                  name,
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: palette.textPrimary,
+                    letterSpacing: -0.3,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 3),
                 Text(
                   state,
                   style: TextStyle(
-                    fontSize: 12.5,
+                    fontSize: 12,
                     color: palette.textSecondary,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  'Reg ID: REG-2026-IND-8841',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontFamily: 'monospace',
-                    color: palette.accentCyan,
-                    fontWeight: FontWeight.w600,
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0x2510B981),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Text(
+                    'Active Aspirant Account',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF10B981),
+                    ),
                   ),
                 ),
               ],
@@ -395,9 +447,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildCandidateDetailsCard(AppPalette palette) {
+    final email = _profileData['email']?.isNotEmpty == true ? _profileData['email']! : 'Not provided';
+    final phone = _profileData['phone']?.isNotEmpty == true ? _profileData['phone']! : 'Not provided';
+
     return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: palette.glassDecoration(radius: 20),
+      padding: const EdgeInsets.all(16),
+      decoration: palette.glassDecoration(radius: 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -407,7 +462,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Text(
                 'Candidate Credentials',
                 style: TextStyle(
-                  fontSize: 14.5,
+                  fontSize: 14,
                   fontWeight: FontWeight.w700,
                   color: palette.textPrimary,
                 ),
@@ -417,22 +472,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Text(
                   'Edit',
                   style: TextStyle(
-                    fontSize: 12.5,
+                    fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: palette.accentBlue,
+                    color: palette.textPrimary,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 14),
-          _buildDetailRow(Icons.email_outlined, 'Email', _profileData['email'] ?? 'aspirant@sarkarialert.in', palette),
-          Divider(color: palette.cardBorder, height: 18),
-          _buildDetailRow(Icons.phone_android_outlined, 'Phone', _profileData['phone'] ?? '+91 98765 43210', palette),
-          Divider(color: palette.cardBorder, height: 18),
+          const SizedBox(height: 12),
+          _buildDetailRow(Icons.email_outlined, 'Email', email, palette),
+          Divider(color: palette.cardBorder, height: 16),
+          _buildDetailRow(Icons.phone_android_outlined, 'Mobile', phone, palette),
+          Divider(color: palette.cardBorder, height: 16),
           _buildDetailRow(Icons.badge_outlined, 'Category', _profileData['category'] ?? 'General / OBC', palette),
-          Divider(color: palette.cardBorder, height: 18),
-          _buildDetailRow(Icons.place_outlined, 'Target Region', _profileData['state'] ?? 'All India Central & States', palette),
+          Divider(color: palette.cardBorder, height: 16),
+          _buildDetailRow(Icons.place_outlined, 'Target Region', _profileData['state'] ?? 'All India', palette),
         ],
       ),
     );
@@ -441,18 +496,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildDetailRow(IconData icon, String label, String value, AppPalette palette) {
     return Row(
       children: [
-        Icon(icon, size: 18, color: palette.accentBlue),
-        const SizedBox(width: 12),
+        Icon(icon, size: 16, color: palette.textSecondary),
+        const SizedBox(width: 10),
         Text(
           label,
-          style: TextStyle(fontSize: 12.5, color: palette.textSecondary, fontWeight: FontWeight.w500),
+          style: TextStyle(fontSize: 12, color: palette.textSecondary, fontWeight: FontWeight.w500),
         ),
         const Spacer(),
         Flexible(
           child: Text(
             value,
             style: TextStyle(
-              fontSize: 13,
+              fontSize: 12.5,
               fontWeight: FontWeight.w600,
               color: palette.textPrimary,
             ),
@@ -464,89 +519,70 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // Sole place for qualification selection
   Widget _buildQualificationsSection(AppPalette palette) {
     return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: palette.glassDecoration(
-        radius: 20,
-        customBorder: palette.accentBlue.withValues(alpha: 0.5),
-      ),
+      padding: const EdgeInsets.all(16),
+      decoration: palette.glassDecoration(radius: 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: palette.accentBlue.withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(Icons.school_rounded, color: palette.accentBlue, size: 20),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Eligibility & Qualifications',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: palette.textPrimary,
-                      ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Qualification Streams',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: palette.textPrimary,
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${_currentQuals.length} qualifications active for matching',
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        color: palette.textSecondary,
-                      ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${_currentQuals.length} qualifications active for matching',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: palette.textSecondary,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              ElevatedButton.icon(
+              OutlinedButton.icon(
                 onPressed: _openQualificationPicker,
-                icon: const Icon(Icons.tune_rounded, size: 14, color: Colors.white),
-                label: const Text('Change', style: TextStyle(fontSize: 12, color: Colors.white)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: palette.accentBlue,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                icon: const Icon(Icons.tune_rounded, size: 13),
+                label: const Text('Change', style: TextStyle(fontSize: 11.5)),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  side: BorderSide(color: palette.cardBorder),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 14),
-          Text(
-            'Your matched Sarkari alerts (including RRB NTPC, SSC CGL, BPSC) are filtered by these degrees:',
-            style: TextStyle(fontSize: 12, color: palette.textSecondary),
-          ),
           const SizedBox(height: 10),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: 6,
+            runSpacing: 6,
             children: _currentQuals.map((q) {
               return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
                 decoration: BoxDecoration(
-                  color: palette.isDark ? const Color(0xFF1E2D44) : const Color(0xFFE2E8F0),
-                  borderRadius: BorderRadius.circular(12),
+                  color: palette.surfaceGlassHigh,
+                  borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: palette.cardBorder),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.check_circle_rounded, size: 13, color: Color(0xFF10B981)),
-                    const SizedBox(width: 6),
+                    const Icon(Icons.check_circle_rounded, size: 12, color: Color(0xFF10B981)),
+                    const SizedBox(width: 5),
                     Text(
                       q,
                       style: TextStyle(
-                        fontSize: 11.5,
+                        fontSize: 11,
                         fontWeight: FontWeight.w600,
                         color: palette.textPrimary,
                       ),
@@ -561,59 +597,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // App Settings: System Theme Auto-Select, Notification Preferences
   Widget _buildAppSettingsSection(AppPalette palette) {
     return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: palette.glassDecoration(radius: 20),
+      padding: const EdgeInsets.all(16),
+      decoration: palette.glassDecoration(radius: 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'App Settings',
             style: TextStyle(
-              fontSize: 15,
+              fontSize: 14,
               fontWeight: FontWeight.w700,
               color: palette.textPrimary,
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
 
-          // Theme Mode Selector
+          // Theme Selector
           Row(
             children: [
-              Icon(Icons.palette_outlined, size: 20, color: palette.accentBlue),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'App Theme',
-                      style: TextStyle(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w600,
-                        color: palette.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'System auto-select is active',
-                      style: TextStyle(fontSize: 11, color: palette.textSecondary),
-                    ),
-                  ],
+              Icon(Icons.palette_outlined, size: 18, color: palette.textSecondary),
+              const SizedBox(width: 8),
+              Text(
+                'App Theme (Dynamic)',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: palette.textPrimary,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
 
-          // 3-way Segmented Button: System (Auto) / Dark / Light
           Container(
-            padding: const EdgeInsets.all(4),
+            padding: const EdgeInsets.all(3),
             decoration: BoxDecoration(
-              color: palette.isDark ? const Color(0xFF0A0F1D) : const Color(0xFFE2E8F0),
-              borderRadius: BorderRadius.circular(14),
+              color: palette.surfaceGlassHigh,
+              borderRadius: BorderRadius.circular(12),
               border: Border.all(color: palette.cardBorder),
             ),
             child: Row(
@@ -642,22 +664,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
           Divider(color: palette.cardBorder),
 
           // Notifications Switch
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             activeThumbColor: Colors.white,
-            activeTrackColor: palette.accentBlue,
+            activeTrackColor: palette.isDark ? const Color(0xFF45404F) : const Color(0xFF292531),
             value: _pushNotifications,
             title: Text(
               'Recruitment Push Alerts',
-              style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: palette.textPrimary),
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: palette.textPrimary),
             ),
             subtitle: Text(
               'Instant alert when new vacancies are released',
-              style: TextStyle(fontSize: 11.5, color: palette.textSecondary),
+              style: TextStyle(fontSize: 11, color: palette.textSecondary),
             ),
             onChanged: (val) {
               setState(() => _pushNotifications = val);
@@ -671,20 +693,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
               );
             },
           ),
-          SwitchListTile(
+          Divider(color: palette.cardBorder),
+
+          // Over-The-Air (OTA) Updates Tile
+          ListTile(
             contentPadding: EdgeInsets.zero,
-            activeThumbColor: Colors.white,
-            activeTrackColor: palette.accentBlue,
-            value: _admitCardAlerts,
+            leading: Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: palette.surfaceGlassHigh,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: palette.cardBorder),
+              ),
+              child: Icon(Icons.system_update_rounded, size: 17, color: palette.textPrimary),
+            ),
             title: Text(
-              'Admit Card & Exam Date Alerts',
-              style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: palette.textPrimary),
+              'Check for App Updates (OTA)',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: palette.textPrimary),
             ),
             subtitle: Text(
-              'Hall tickets, exam city slips & Sarkari Result updates',
-              style: TextStyle(fontSize: 11.5, color: palette.textSecondary),
+              'Current version: v2.0.0 (Release)',
+              style: TextStyle(fontSize: 11, color: palette.textSecondary),
             ),
-            onChanged: (val) => setState(() => _admitCardAlerts = val),
+            trailing: _isCheckingOta
+                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                : OutlinedButton(
+                    onPressed: _checkOtaUpdate,
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      side: BorderSide(color: palette.cardBorder),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    child: const Text('Check', style: TextStyle(fontSize: 11.5)),
+                  ),
           ),
         ],
       ),
@@ -703,20 +745,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
         onTap: onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.symmetric(vertical: 7),
           decoration: BoxDecoration(
-            color: isSelected ? palette.accentBlue : Colors.transparent,
+            color: isSelected
+                ? (palette.isDark ? const Color(0xFF45404F) : const Color(0xFF292531))
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(10),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 14, color: isSelected ? Colors.white : palette.textSecondary),
-              const SizedBox(width: 5),
+              Icon(icon, size: 13, color: isSelected ? Colors.white : palette.textSecondary),
+              const SizedBox(width: 4),
               Text(
                 label,
                 style: TextStyle(
-                  fontSize: 11.5,
+                  fontSize: 11,
                   fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                   color: isSelected ? Colors.white : palette.textSecondary,
                 ),
@@ -733,19 +777,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
       width: double.infinity,
       child: OutlinedButton.icon(
         onPressed: _confirmLogout,
-        icon: const Icon(Icons.logout_rounded, size: 18, color: Color(0xFFEF4444)),
+        icon: const Icon(Icons.logout_rounded, size: 16, color: Color(0xFFEF4444)),
         label: const Text(
           'Log Out Candidate Account',
           style: TextStyle(
-            fontSize: 14,
+            fontSize: 13.5,
             fontWeight: FontWeight.w700,
             color: Color(0xFFEF4444),
           ),
         ),
         style: OutlinedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          side: const BorderSide(color: Color(0xFFEF4444), width: 1.2),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          side: const BorderSide(color: Color(0xFFEF4444), width: 1.1),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           backgroundColor: palette.surfaceGlass,
         ),
       ),
@@ -756,18 +800,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Column(
       children: [
         Text(
-          'Sarkari Job Alert • Production v1.0.0',
+          'Sarkari Job Alert • v2.0.0 (OTA Enabled)',
           style: TextStyle(
-            fontSize: 11.5,
+            fontSize: 11,
             fontWeight: FontWeight.w600,
             color: palette.textSecondary,
           ),
         ),
         const SizedBox(height: 3),
         Text(
-          'Official Gazette & Sarkari Result Direct Sync',
+          'Direct Live Synchronization across 3 Portals',
           style: TextStyle(
-            fontSize: 10.5,
+            fontSize: 10,
             color: palette.textSecondary.withValues(alpha: 0.7),
           ),
         ),

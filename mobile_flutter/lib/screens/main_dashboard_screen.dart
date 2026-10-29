@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 import '../models/job_post.dart';
 import '../models/qualification.dart';
@@ -11,7 +13,6 @@ import '../widgets/dashboard_grid_card.dart';
 import '../widgets/hero_metric_card.dart';
 import '../widgets/job_card.dart';
 import '../widgets/portal_filter_bar.dart';
-import '../widgets/tactile_fade_slide.dart';
 import 'auth_screen.dart';
 import 'profile_screen.dart';
 
@@ -31,24 +32,26 @@ class MainDashboardScreen extends StatefulWidget {
 
 class _MainDashboardScreenState extends State<MainDashboardScreen> {
   int _currentTab = 0; // 0: Home, 1: Explore, 2: Saved, 3: Alerts
-  final TextEditingController _searchController = TextEditingController();
+  bool _isLoading = false;
+  bool _isPullRefreshing = false;
+  bool _bannerDismissed = false;
+  bool _isBarsVisible = true; // Controls header & footer visibility on scroll
 
   List<JobPost> _allJobs = [];
-  List<Qualification> _masterQualifications = [];
   List<String> _selectedQualifications = ['B.SC', 'GRADUATE', '12TH / 10+2'];
   Set<int> _savedJobIds = {};
+  List<Qualification> _masterQualifications = [];
   String _candidateName = 'Candidate';
-  bool _bannerDismissed = false;
 
+  // Explore tab filters (In-memory, instant)
   String _selectedSource = 'All';
   String _searchQuery = '';
-  bool _isLoading = true;
-  bool _isScraping = false;
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _initialLoad();
+    _initialFastLoad();
   }
 
   @override
@@ -57,66 +60,69 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     super.dispose();
   }
 
-  Future<void> _initialLoad() async {
-    setState(() => _isLoading = true);
+  /// Instant 0ms cache load, followed by silent background sync
+  Future<void> _initialFastLoad() async {
+    // 1. Read local storage first (instant synchronous feel)
+    final cachedJobs = await StorageService.getCachedJobs();
     final quals = await StorageService.getSelectedQualifications();
     final saved = await StorageService.getSavedJobIds();
-    final masterQuals = await ApiService.fetchQualifications();
     final profile = await StorageService.getCandidateProfile();
     final dismissed = await StorageService.isBannerDismissed();
 
     if (mounted) {
       setState(() {
+        if (cachedJobs.isNotEmpty) {
+          _allJobs = cachedJobs;
+          _isLoading = false;
+        } else {
+          _isLoading = true;
+        }
         _selectedQualifications = quals.isNotEmpty ? quals : ['B.SC', 'GRADUATE', '12TH / 10+2'];
         _savedJobIds = saved;
-        _masterQualifications = masterQuals;
-        _candidateName = profile['name']?.split(' ').first ?? 'Candidate';
+        _candidateName = (profile['name']?.isNotEmpty == true && profile['name'] != 'Candidate')
+            ? profile['name']!.split(' ').first
+            : 'Candidate';
         _bannerDismissed = dismissed;
       });
     }
 
-    await _fetchJobs();
+    // 2. Background silent fetch & sync (no full-screen blocking spinner)
+    _silentBackgroundSync();
   }
 
-  Future<void> _fetchJobs() async {
-    setState(() => _isLoading = true);
-    final jobs = await ApiService.fetchJobs(
-      source: _selectedSource,
-      search: _searchQuery,
-    );
-
-    if (mounted) {
-      setState(() {
-        _allJobs = jobs;
-        _isLoading = false;
-      });
+  Future<void> _silentBackgroundSync() async {
+    try {
+      final freshJobs = await ApiService.fetchJobs();
+      final masterQuals = await ApiService.fetchQualifications();
+      if (mounted) {
+        setState(() {
+          if (freshJobs.isNotEmpty) _allJobs = freshJobs;
+          _masterQualifications = masterQuals;
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  Future<void> _triggerManualScrape() async {
-    if (_isScraping) return;
-    setState(() => _isScraping = true);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Syncing latest government vacancies from Sarkari Result & RRB...'),
-        duration: Duration(seconds: 2),
-      ),
-    );
+  /// Pull-to-refresh trigger: Shows top pull animation and refreshes jobs
+  Future<void> _handlePullRefresh() async {
+    if (_isPullRefreshing) return;
+    setState(() => _isPullRefreshing = true);
 
-    final ok = await ApiService.triggerScrape();
-    await _fetchJobs();
-
-    if (mounted) {
-      setState(() => _isScraping = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            ok
-                ? 'Synced latest vacancies successfully'
-                : 'Vacancies up to date (viewing latest recruitment notices)',
-          ),
-        ),
+    try {
+      // Trigger background scrape if backend is connected
+      await ApiService.triggerScrape();
+      final freshJobs = await ApiService.fetchJobs(
+        source: _selectedSource,
+        search: _searchQuery,
       );
+      if (mounted && freshJobs.isNotEmpty) {
+        setState(() => _allJobs = freshJobs);
+      }
+    } finally {
+      if (mounted) setState(() => _isPullRefreshing = false);
     }
   }
 
@@ -135,7 +141,10 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
 
   void _handleBannerClick() {
     _dismissBanner();
-    setState(() => _currentTab = 3); // Navigate to Alerts tab
+    setState(() {
+      _currentTab = 3;
+      _isBarsVisible = true;
+    });
   }
 
   void _openProfile() async {
@@ -148,7 +157,6 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
           currentThemeMode: widget.currentThemeMode,
           onQualificationsChanged: (newSelected) {
             setState(() => _selectedQualifications = newSelected);
-            _fetchJobs();
           },
           onThemeChanged: widget.onThemeChanged,
         ),
@@ -156,7 +164,6 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     );
 
     if (loggedOut == true && mounted) {
-      // Transition to Auth screen
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -166,13 +173,47 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
           ),
         ),
       );
+    } else {
+      // Refresh candidate profile name
+      final profile = await StorageService.getCandidateProfile();
+      if (mounted) {
+        setState(() {
+          _candidateName = (profile['name']?.isNotEmpty == true && profile['name'] != 'Candidate')
+              ? profile['name']!.split(' ').first
+              : 'Candidate';
+        });
+      }
     }
   }
 
+  // --- Home Tab: Matched recommendations based on candidate streams ---
   List<JobPost> _getMatchedJobs() {
     return _allJobs.where((job) {
       return QualificationMatcher.isJobEligible(job, _selectedQualifications);
     }).toList();
+  }
+
+  // --- Explore Tab: Universal Large Pool of ALL Jobs across 3 portals ---
+  // Deduplicated and NOT choice-specific!
+  List<JobPost> _getFilteredExploreJobs() {
+    var list = _allJobs;
+
+    // Filter by portal chip if not 'All'
+    if (_selectedSource != 'All') {
+      list = list.where((j) => j.source.toLowerCase() == _selectedSource.toLowerCase()).toList();
+    }
+
+    // Instant in-memory search
+    if (_searchQuery.trim().isNotEmpty) {
+      final q = _searchQuery.trim().toLowerCase();
+      list = list.where((j) =>
+          j.title.toLowerCase().contains(q) ||
+          j.org.toLowerCase().contains(q) ||
+          j.eligibilitySnippet.toLowerCase().contains(q) ||
+          j.qualificationsFound.any((qual) => qual.toLowerCase().contains(q))).toList();
+    }
+
+    return list;
   }
 
   List<JobPost> _getSavedJobs() {
@@ -185,153 +226,224 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
 
     return Scaffold(
       backgroundColor: palette.background,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Top App Bar Header
-            _buildTopHeader(palette),
-
-            // Dismissible Notification Banner (As requested: gone after clicking & checking)
-            if (!_bannerDismissed) _buildNotificationBanner(palette),
-
-            // Main Content Views
-            Expanded(
-              child: _isLoading
-                  ? Center(child: CircularProgressIndicator(color: palette.accentBlue))
-                  : IndexedStack(
-                      index: _currentTab,
+      body: NotificationListener<UserScrollNotification>(
+        onNotification: (notification) {
+          // When scrolling down: collapse header and footer to give full screen to middle UI
+          if (notification.direction == ScrollDirection.reverse) {
+            if (_isBarsVisible) {
+              setState(() => _isBarsVisible = false);
+            }
+          }
+          // When scrolling up: smoothly reveal header and footer
+          else if (notification.direction == ScrollDirection.forward) {
+            if (!_isBarsVisible) {
+              setState(() => _isBarsVisible = true);
+            }
+          }
+          return false;
+        },
+        child: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              // 1. Collapsible Header (Shifts UP and gone on scroll)
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 260),
+                curve: Curves.easeInOutCubic,
+                height: _isBarsVisible ? null : 0.0,
+                clipBehavior: Clip.hardEdge,
+                decoration: const BoxDecoration(),
+                child: AnimatedSlide(
+                  duration: const Duration(milliseconds: 260),
+                  curve: Curves.easeInOutCubic,
+                  offset: _isBarsVisible ? Offset.zero : const Offset(0, -1),
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 200),
+                    opacity: _isBarsVisible ? 1.0 : 0.0,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        _buildDashboardView(palette),
-                        _buildExploreDirectoryView(palette),
-                        _buildExploreListView(_getSavedJobs(), palette, isSavedTab: true),
-                        _buildAlertsView(palette),
+                        _buildTopHeader(palette),
+                        if (!_bannerDismissed) _buildNotificationBanner(palette),
                       ],
                     ),
-            ),
-
-            // Floating Bottom Dock (No duplicates, center sync action)
-            CustomBottomDock(
-              currentIndex: _currentTab,
-              onTabSelected: (idx) => setState(() => _currentTab = idx),
-              onCenterAction: _triggerManualScrape,
-              isSyncing: _isScraping,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTopHeader(AppPalette palette) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              // Left: Category / Sector Sheet (Deduplicated, not sync!)
-              IconButton(
-                onPressed: () {
-                  setState(() => _currentTab = 1); // Open Explore tab
-                },
-                icon: Icon(
-                  Icons.dashboard_customize_rounded,
-                  color: palette.isDark ? Colors.white70 : const Color(0xFF1E293B),
-                  size: 26,
+                  ),
                 ),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                tooltip: 'Explore Directory',
               ),
 
-              // Right: Profile Avatar Click opens Profile Screen
-              InkWell(
-                onTap: _openProfile,
-                borderRadius: BorderRadius.circular(22),
-                child: Container(
-                  padding: const EdgeInsets.all(2.5),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: palette.accentBlue,
-                      width: 2,
-                    ),
-                  ),
-                  child: Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: palette.isDark ? const Color(0xFF1E2D44) : const Color(0xFFE2E8F0),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Center(
-                      child: Icon(
-                        Icons.person_rounded,
-                        size: 22,
-                        color: palette.isDark ? Colors.white : const Color(0xFF1E293B),
+              // 2. Middle Content Views (Expands to fill 100% of space)
+              Expanded(
+                child: _isLoading && _allJobs.isEmpty
+                    ? Center(child: CircularProgressIndicator(color: palette.accentPrimary))
+                    : IndexedStack(
+                        index: _currentTab,
+                        children: [
+                          _buildDashboardView(palette),
+                          _buildExploreDirectoryView(palette),
+                          _buildExploreListView(_getSavedJobs(), palette, isSavedTab: true),
+                          _buildAlertsView(palette),
+                        ],
                       ),
+              ),
+
+              // 3. Collapsible Footer Bottom Dock (Shifts DOWN and gone on scroll)
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 260),
+                curve: Curves.easeInOutCubic,
+                height: _isBarsVisible ? 80.0 : 0.0,
+                clipBehavior: Clip.hardEdge,
+                decoration: const BoxDecoration(),
+                child: AnimatedSlide(
+                  duration: const Duration(milliseconds: 260),
+                  curve: Curves.easeInOutCubic,
+                  offset: _isBarsVisible ? Offset.zero : const Offset(0, 1),
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 200),
+                    opacity: _isBarsVisible ? 1.0 : 0.0,
+                    child: CustomBottomDock(
+                      currentIndex: _currentTab,
+                      onTabSelected: (idx) {
+                        setState(() {
+                          _currentTab = idx;
+                          _isBarsVisible = true; // Always reveal bars on tab switch
+                        });
+                      },
                     ),
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 14),
+        ),
+      ),
+    );
+  }
 
-          // Greeting & Active Degrees Pill
+  // --- Header without left button as requested ---
+  Widget _buildTopHeader(AppPalette palette) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 6),
+      child: Column(
+        children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Hello $_candidateName 👋',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: palette.textPrimary,
-                        letterSpacing: -0.4,
+              // Left: App Logo & Title
+              Row(
+                children: [
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color: palette.surfaceGlassHigh,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: palette.cardBorder, width: 1),
+                    ),
+                    child: const Center(
+                      child: Icon(
+                        Icons.notifications_active_rounded,
+                        size: 19,
+                        color: Color(0xFFFBBF24),
                       ),
                     ),
-                    const SizedBox(height: 3),
-                    Text(
-                      'Sarkari Recruitment & RRB Alerts',
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w500,
-                        color: palette.textSecondary,
+                  ),
+                  const SizedBox(width: 10),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Sarkari Job Alert',
+                        style: TextStyle(
+                          fontSize: 16.5,
+                          fontWeight: FontWeight.w800,
+                          color: palette.textPrimary,
+                          letterSpacing: -0.3,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
+                      Text(
+                        'Official Recruitment Portal',
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          color: palette.textSecondary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
 
-              // Status Pill (Opens Profile)
+              // Right: Profile Avatar
               InkWell(
                 onTap: _openProfile,
                 borderRadius: BorderRadius.circular(20),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                  decoration: palette.glassDecoration(radius: 20),
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: palette.surfaceGlassHigh,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: palette.cardBorder,
+                      width: 1.2,
+                    ),
+                  ),
+                  child: Center(
+                    child: Icon(
+                      Icons.person_rounded,
+                      size: 20,
+                      color: palette.textPrimary,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          // Greeting & Active Degree Status
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Text(
+                  'Hello, $_candidateName',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: palette.textPrimary,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+              ),
+
+              // Active Qualification Pill
+              InkWell(
+                onTap: _openProfile,
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: palette.surfaceGlassHigh,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: palette.cardBorder, width: 0.8),
+                  ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Container(
-                        width: 7,
-                        height: 7,
-                        decoration: BoxDecoration(
-                          color: palette.accentGreen,
+                        width: 6,
+                        height: 6,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF10B981),
                           shape: BoxShape.circle,
                         ),
                       ),
-                      const SizedBox(width: 6),
+                      const SizedBox(width: 5),
                       Text(
                         _selectedQualifications.first,
                         style: TextStyle(
-                          fontSize: 11.5,
+                          fontSize: 11,
                           fontWeight: FontWeight.w700,
                           color: palette.textPrimary,
                         ),
@@ -349,83 +461,68 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
 
   // Dismissible Top Notification Banner
   Widget _buildNotificationBanner(AppPalette palette) {
-    return TactileFadeSlide(
-      child: Container(
-        margin: const EdgeInsets.fromLTRB(20, 4, 20, 8),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: palette.accentBlue.withValues(alpha: palette.isDark ? 0.2 : 0.1),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: palette.accentBlue.withValues(alpha: 0.4)),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.campaign_rounded, color: palette.accentCyan, size: 20),
-            const SizedBox(width: 10),
-            Expanded(
-              child: InkWell(
-                onTap: _handleBannerClick,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '📢 3 New Notifications Today',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                        color: palette.textPrimary,
-                      ),
-                    ),
-                    Text(
-                      'RRB NTPC 11,558 Posts & UPSC Civil Services. Tap to check.',
-                      style: TextStyle(fontSize: 11, color: palette.textSecondary),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 4, 20, 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: palette.surfaceGlassHigh,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: palette.cardBorder),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.campaign_rounded, color: Color(0xFFFBBF24), size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: InkWell(
+              onTap: _handleBannerClick,
+              child: Text(
+                'Latest Notices: RRB NTPC Graduate Posts & SSC CGL. Tap to check.',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                  color: palette.textPrimary,
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
-            IconButton(
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-              icon: Icon(Icons.close_rounded, size: 16, color: palette.textSecondary),
-              onPressed: _dismissBanner,
-              tooltip: 'Dismiss',
-            ),
-          ],
-        ),
+          ),
+          IconButton(
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            icon: Icon(Icons.close_rounded, size: 16, color: palette.textSecondary),
+            onPressed: _dismissBanner,
+          ),
+        ],
       ),
     );
   }
 
-  // View 0: Tactile 2x2 Bento Home Dashboard (Candidate Command Center)
+  // --- TAB 0: HOME COMMAND CENTER (Pull-to-refresh enabled) ---
   Widget _buildDashboardView(AppPalette palette) {
     final matchedJobs = _getMatchedJobs();
     final topJobs = matchedJobs.isNotEmpty ? matchedJobs : _allJobs;
 
     return RefreshIndicator(
-      color: palette.accentBlue,
-      backgroundColor: palette.surfaceGlassHigh,
-      onRefresh: _fetchJobs,
+      onRefresh: _handlePullRefresh,
+      color: palette.accentPrimary,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.only(bottom: 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Hero Metric Card
-            TactileFadeSlide(
-              delayMs: 100,
-              child: HeroMetricCard(
-                totalJobs: _allJobs.length,
-                matchedCount: matchedJobs.length,
-                onTap: () => setState(() => _currentTab = 1),
-              ),
+            HeroMetricCard(
+              totalJobs: _allJobs.length,
+              matchedCount: matchedJobs.length,
+              onTap: () => setState(() => _currentTab = 1),
             ),
 
             // Sector Quick Access Pills
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 6, 20, 8),
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 6),
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
@@ -440,16 +537,16 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
               ),
             ),
 
-            // Section Header: "Recommended For You" / "See all ->"
+            // Section Header: "Recommended For You"
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Recommended For ${_selectedQualifications.join(", ")}',
+                    'Matched for ${_selectedQualifications.first}',
                     style: TextStyle(
-                      fontSize: 15,
+                      fontSize: 14.5,
                       fontWeight: FontWeight.w700,
                       color: palette.textPrimary,
                       letterSpacing: -0.2,
@@ -460,18 +557,18 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                     child: Row(
                       children: [
                         Text(
-                          'See all',
+                          'View all',
                           style: TextStyle(
-                            fontSize: 12.5,
+                            fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: palette.accentBlue,
+                            color: palette.textSecondary,
                           ),
                         ),
-                        const SizedBox(width: 3),
+                        const SizedBox(width: 2),
                         Icon(
                           Icons.arrow_forward_rounded,
-                          size: 14,
-                          color: palette.accentBlue,
+                          size: 13,
+                          color: palette.textSecondary,
                         ),
                       ],
                     ),
@@ -488,26 +585,22 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                 physics: const NeverScrollableScrollPhysics(),
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                  childAspectRatio: 0.88,
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 10,
+                  childAspectRatio: 0.92,
                 ),
                 itemCount: topJobs.take(6).length,
                 itemBuilder: (context, index) {
                   final job = topJobs[index];
                   final isSaved = _savedJobIds.contains(job.id);
-                  return TactileFadeSlide(
-                    delayMs: 150 + index * 60,
-                    child: DashboardGridCard(
-                      job: job,
-                      isSaved: isSaved,
-                      onToggleSave: () => _toggleSaveJob(job.id),
-                    ),
+                  return DashboardGridCard(
+                    job: job,
+                    isSaved: isSaved,
+                    onToggleSave: () => _toggleSaveJob(job.id),
                   );
                 },
               ),
             ),
-            const SizedBox(height: 20),
           ],
         ),
       ),
@@ -519,21 +612,24 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
       padding: const EdgeInsets.only(right: 8),
       child: InkWell(
         onTap: () {
-          _searchController.text = query;
           setState(() {
+            _searchController.text = query;
             _searchQuery = query;
-            _currentTab = 1; // Switch to explore with query
+            _currentTab = 1; // Switch to Explore view
           });
-          _fetchJobs();
         },
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: palette.glassDecoration(radius: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+          decoration: BoxDecoration(
+            color: palette.surfaceGlassHigh,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: palette.cardBorder, width: 0.8),
+          ),
           child: Text(
             label,
             style: TextStyle(
-              fontSize: 12,
+              fontSize: 11.5,
               fontWeight: FontWeight.w600,
               color: palette.textPrimary,
             ),
@@ -543,86 +639,91 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     );
   }
 
-  // View 1: Explore Discovery & Portals (Logical difference from Home!)
+  // --- TAB 1: EXPLORE DIRECTORY (Full Pool Across 3 Portals, Pull-to-refresh) ---
   Widget _buildExploreDirectoryView(AppPalette palette) {
+    final exploreJobs = _getFilteredExploreJobs();
+
     return Column(
       children: [
-        // Search bar with clear button
+        // Fast instant search bar
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 6),
           child: TextField(
             controller: _searchController,
             onChanged: (val) {
+              // Instant in-memory filter with zero network delay!
               setState(() => _searchQuery = val);
-              _fetchJobs();
             },
-            style: TextStyle(color: palette.textPrimary, fontSize: 13.5),
+            style: TextStyle(color: palette.textPrimary, fontSize: 13),
             decoration: InputDecoration(
               hintText: 'Search RRB NTPC, B.Sc Science, UPSC, SSC...',
-              hintStyle: TextStyle(fontSize: 13, color: palette.textSecondary),
-              prefixIcon: Icon(Icons.search, size: 20, color: palette.accentBlue),
+              hintStyle: TextStyle(fontSize: 12.5, color: palette.textSecondary),
+              prefixIcon: Icon(Icons.search, size: 18, color: palette.textSecondary),
               suffixIcon: _searchController.text.isNotEmpty
                   ? IconButton(
-                      icon: const Icon(Icons.clear, size: 18),
+                      icon: const Icon(Icons.clear, size: 16),
                       onPressed: () {
                         _searchController.clear();
                         setState(() => _searchQuery = '');
-                        _fetchJobs();
                       },
                     )
                   : null,
               isDense: true,
               filled: true,
-              fillColor: palette.isDark ? const Color(0xFF0A0F1D) : Colors.white,
+              fillColor: palette.isDark ? const Color(0xFF17151C) : Colors.white,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(14),
                 borderSide: BorderSide(color: palette.cardBorder),
               ),
               enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(14),
                 borderSide: BorderSide(color: palette.cardBorder),
               ),
             ),
           ),
         ),
 
-        // Portal filter chips
+        // Portal filter bar: All, SarkariResult ★, FreeJobAlert, RojgarResult
         PortalFilterBar(
           selectedSource: _selectedSource,
           onSourceSelected: (src) {
             setState(() => _selectedSource = src);
-            _fetchJobs();
           },
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 4),
 
-        // Recruitment Feed
+        // Recruitment Feed with Pull-To-Refresh
         Expanded(
-          child: _buildJobList(
-            _allJobs,
-            palette,
-            emptyTitle: 'No vacancies found',
-            emptySubtitle: 'Try adjusting your search query or portal filters.',
+          child: RefreshIndicator(
+            onRefresh: _handlePullRefresh,
+            color: palette.accentPrimary,
+            child: _buildJobList(
+              exploreJobs,
+              palette,
+              emptyTitle: 'No vacancies found',
+              emptySubtitle: 'Try adjusting your search query or portal filters.',
+            ),
           ),
         ),
       ],
     );
   }
 
-  // View 2: Saved Bookmarks
+  // --- TAB 2: SAVED BOOKMARKS ---
   Widget _buildExploreListView(List<JobPost> list, AppPalette palette, {bool isSavedTab = false}) {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 6, 20, 10),
+          padding: const EdgeInsets.fromLTRB(20, 6, 20, 8),
           child: Row(
             children: [
-              Icon(Icons.bookmark_rounded, color: palette.accentAmber, size: 20),
+              const Icon(Icons.bookmark_rounded, color: Color(0xFFFBBF24), size: 18),
               const SizedBox(width: 8),
               Text(
-                'My Saved Bookmarks (${list.length})',
+                'Bookmarked Vacancies (${list.length})',
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: 14.5,
                   fontWeight: FontWeight.w700,
                   color: palette.textPrimary,
                 ),
@@ -634,156 +735,101 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
           child: _buildJobList(
             list,
             palette,
-            emptyTitle: 'No saved jobs yet',
-            emptySubtitle: 'Toggle the bookmark switch on any card to track it here.',
+            emptyTitle: 'No Bookmarked Vacancies',
+            emptySubtitle: 'Tap Bookmark on any job notice to save it for quick reference.',
           ),
         ),
       ],
     );
   }
 
-  Widget _buildJobList(List<JobPost> list, AppPalette palette, {required String emptyTitle, required String emptySubtitle}) {
+  // --- TAB 3: ALERTS TAB ---
+  Widget _buildAlertsView(AppPalette palette) {
+    final alertJobs = _getMatchedJobs().take(8).toList();
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+      children: [
+        Text(
+          'Recruitment Alerts',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+            color: palette.textPrimary,
+            letterSpacing: -0.3,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Instant notifications for vacancies matching your qualifications',
+          style: TextStyle(fontSize: 12, color: palette.textSecondary),
+        ),
+        const SizedBox(height: 14),
+
+        ...alertJobs.map((j) {
+          final isSaved = _savedJobIds.contains(j.id);
+          return JobCard(
+            job: j,
+            isSaved: isSaved,
+            onToggleSave: () => _toggleSaveJob(j.id),
+          );
+        }),
+      ],
+    );
+  }
+
+  Widget _buildJobList(
+    List<JobPost> list,
+    AppPalette palette, {
+    required String emptyTitle,
+    required String emptySubtitle,
+  }) {
     if (list.isEmpty) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.inbox_outlined, size: 48, color: palette.textSecondary),
-            const SizedBox(height: 12),
-            Text(
-              emptyTitle,
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: palette.textPrimary),
-            ),
-            const SizedBox(height: 4),
-            Text(emptySubtitle, style: TextStyle(fontSize: 12, color: palette.textSecondary)),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.search_off_rounded, size: 48, color: palette.textSecondary),
+              const SizedBox(height: 12),
+              Text(
+                emptyTitle,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: palette.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                emptySubtitle,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: palette.textSecondary,
+                  height: 1.4,
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.only(bottom: 12),
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.only(bottom: 16),
       itemCount: list.length,
       itemBuilder: (context, index) {
         final job = list[index];
         final isSaved = _savedJobIds.contains(job.id);
-        return TactileFadeSlide(
-          delayMs: index < 5 ? index * 40 : 0,
-          child: JobCard(
-            job: job,
-            isSaved: isSaved,
-            onToggleSave: () => _toggleSaveJob(job.id),
-          ),
+        return JobCard(
+          job: job,
+          isSaved: isSaved,
+          onToggleSave: () => _toggleSaveJob(job.id),
         );
       },
-    );
-  }
-
-  // View 3: Official Alerts & Notices Tab
-  Widget _buildAlertsView(AppPalette palette) {
-    final notices = [
-      {
-        'title': 'RRB NTPC Graduate Level CEN 05/2026 Application Window Open',
-        'dept': 'Railway Recruitment Boards (RRB)',
-        'date': 'Active Now • 11,558 Posts',
-        'tag': 'Live',
-        'color': 0xFF10B981,
-      },
-      {
-        'title': 'UPSC Civil Services Prelims 2026 Examination Notice Released',
-        'dept': 'Union Public Service Commission',
-        'date': 'Today',
-        'tag': 'Notice',
-        'color': 0xFF2563EB,
-      },
-      {
-        'title': 'UP TGT Exam Date & Admit Card Hall Ticket Notice Announced',
-        'dept': 'UP Education Selection Commission',
-        'date': '24 Oct',
-        'tag': 'Admit Card',
-        'color': 0xFFF59E0B,
-      },
-      {
-        'title': 'BPSC Headmaster & Head Teacher Document Verification Schedule',
-        'dept': 'Bihar Public Service Commission',
-        'date': '22 Oct',
-        'tag': 'Verification',
-        'color': 0xFF8B5CF6,
-      },
-    ];
-
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Official Alerts & Notices',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: palette.textPrimary,
-              ),
-            ),
-            IconButton(
-              onPressed: _triggerManualScrape,
-              icon: Icon(Icons.refresh, color: palette.accentBlue, size: 20),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        ...notices.map((n) {
-          final color = Color(n['color'] as int);
-          return Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.all(16),
-            decoration: palette.glassDecoration(radius: 18),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    n['tag'] as String,
-                    style: TextStyle(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w700,
-                      color: color,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        n['title'] as String,
-                        style: TextStyle(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w700,
-                          color: palette.textPrimary,
-                          height: 1.25,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${n['dept']} • ${n['date']}',
-                        style: TextStyle(fontSize: 11, color: palette.textSecondary),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          );
-        }),
-      ],
     );
   }
 }

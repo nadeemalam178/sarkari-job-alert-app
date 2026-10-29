@@ -38,7 +38,10 @@ class JobDetailsSheet extends StatelessWidget {
     if (url.isEmpty) return;
     try {
       final uri = Uri.parse(url);
-      final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
       if (!launched && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Could not open external link')),
@@ -46,9 +49,8 @@ class JobDetailsSheet extends StatelessWidget {
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to open link: $e')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Failed to open link: $e')));
       }
     }
   }
@@ -64,11 +66,13 @@ class JobDetailsSheet extends StatelessWidget {
       builder: (context, scrollController) {
         return Container(
           decoration: BoxDecoration(
-            color: palette.surfaceGlassHigh,
+            color: palette.isDark ? const Color(0xFF292531) : Colors.white,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
             boxShadow: [
               BoxShadow(
-                color: palette.isDark ? const Color(0x99000000) : const Color(0x220F172A),
+                color: palette.isDark
+                    ? const Color(0x99000000)
+                    : const Color(0x2217151C),
                 blurRadius: 30,
                 offset: const Offset(0, -6),
               ),
@@ -103,9 +107,12 @@ class JobDetailsSheet extends StatelessWidget {
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
-                            color: palette.isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
+                            color: palette.surfaceGlassHigh,
                             borderRadius: BorderRadius.circular(10),
                             border: Border.all(color: palette.cardBorder),
                           ),
@@ -115,82 +122,110 @@ class JobDetailsSheet extends StatelessWidget {
                               Container(
                                 width: 7,
                                 height: 7,
-                                decoration: BoxDecoration(
-                                  color: palette.accentGreen,
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFF10B981),
                                   shape: BoxShape.circle,
                                 ),
                               ),
                               const SizedBox(width: 6),
                               Text(
-                                '${job.source} Verified',
+                                job.source,
                                 style: TextStyle(
-                                  fontSize: 11.5,
+                                  fontSize: 11,
                                   fontWeight: FontWeight.w700,
-                                  color: palette.textSecondary,
+                                  color: palette.textPrimary,
                                 ),
                               ),
                             ],
                           ),
                         ),
+                        if (job.totalPosts.isNotEmpty) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: palette.surfaceGlassHigh,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: palette.cardBorder),
+                            ),
+                            child: Text(
+                              job.totalPosts,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: palette.textPrimary,
+                              ),
+                            ),
+                          ),
+                        ],
                         const Spacer(),
                         IconButton(
                           onPressed: onToggleSave,
                           icon: Icon(
-                            isSaved ? Icons.bookmark_rounded : Icons.bookmark_outline_rounded,
-                            color: isSaved ? palette.accentAmber : palette.textSecondary,
-                            size: 24,
+                            isSaved ? Icons.bookmark : Icons.bookmark_border,
+                            color: isSaved
+                                ? palette.accentPrimary
+                                : palette.textSecondary,
+                            size: 22,
                           ),
-                          tooltip: isSaved ? 'Saved in Bookmarks' : 'Save Job',
+                          tooltip: 'Bookmark Vacancy',
                         ),
                         IconButton(
                           onPressed: () => Navigator.pop(context),
-                          icon: Icon(Icons.close_rounded, color: palette.textSecondary, size: 24),
+                          icon: Icon(
+                            Icons.close_rounded,
+                            color: palette.textSecondary,
+                          ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 12),
 
-                    // Organization
+                    // Organization Banner
                     if (job.org.isNotEmpty) ...[
                       Text(
                         job.org.toUpperCase(),
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w800,
-                          color: palette.accentCyan,
+                          color: palette.accentPlum,
                           letterSpacing: 0.6,
                         ),
                       ),
                       const SizedBox(height: 4),
                     ],
 
-                    // Job Title
+                    // Full Job Title
                     Text(
                       job.title,
                       style: TextStyle(
-                        fontSize: 20,
+                        fontSize: 18,
                         fontWeight: FontWeight.w800,
                         color: palette.textPrimary,
+                        height: 1.3,
                         letterSpacing: -0.4,
-                        height: 1.25,
                       ),
                     ),
+                    const SizedBox(height: 16),
+
+                    // 1. Key Timeline & Metric Matrix
+                    _buildTimelineCard(palette),
+                    const SizedBox(height: 16),
+
+                    // 2. Fees & Age Limit Card
+                    _buildFeeAndAgeCard(palette),
+                    const SizedBox(height: 16),
+
+                    // 3. Eligibility & Qualifications Section
+                    _buildEligibilityCard(palette),
                     const SizedBox(height: 18),
 
-                    // KEY HIGHLIGHTS CONTAINER (Bento Grid)
-                    _buildHighlightsGrid(palette),
-                    const SizedBox(height: 16),
-
-                    // IMPORTANT DATES CONTAINER
-                    _buildDatesContainer(palette),
-                    const SizedBox(height: 16),
-
-                    // QUALIFICATIONS & ELIGIBILITY CONTAINER
-                    _buildQualificationsContainer(palette),
-                    const SizedBox(height: 16),
-
-                    // RELEVANT LINKS & ACTION CONTAINER
+                    // 4. Relevant Action Links Container
                     _buildRelevantLinksContainer(context, palette),
+                    const SizedBox(height: 24),
                   ],
                 ),
               ),
@@ -201,57 +236,56 @@ class JobDetailsSheet extends StatelessWidget {
     );
   }
 
-  // 1. Bento Grid: Posts, Age Limit & Fee
-  Widget _buildHighlightsGrid(AppPalette palette) {
+  // 1. Timeline Card (Application Begin & Last Date)
+  Widget _buildTimelineCard(AppPalette palette) {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: palette.glassDecoration(radius: 20),
+      decoration: palette.glassDecoration(radius: 18),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Expanded(
-                child: _buildMetricTile(
-                  icon: Icons.people_alt_rounded,
-                  iconColor: palette.accentAmber,
-                  title: 'Total Vacancies',
-                  value: job.totalPosts.isNotEmpty ? job.totalPosts : 'Various Posts',
-                  palette: palette,
-                ),
+              const Icon(
+                Icons.calendar_today_rounded,
+                size: 16,
+                color: Color(0xFF10B981),
               ),
-              Container(width: 1, height: 48, color: palette.cardBorder),
-              Expanded(
-                child: _buildMetricTile(
-                  icon: Icons.cake_rounded,
-                  iconColor: palette.accentCyan,
-                  title: 'Age Limit',
-                  value: job.ageLimit.isNotEmpty ? job.ageLimit : '18-35+ Yrs',
-                  palette: palette,
+              const SizedBox(width: 8),
+              Text(
+                'Important Recruitment Dates',
+                style: TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w700,
+                  color: palette.textPrimary,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          Divider(color: palette.cardBorder, height: 1),
-          const SizedBox(height: 12),
           Row(
             children: [
-              Icon(Icons.payments_outlined, size: 18, color: palette.accentGreen),
+              Expanded(
+                child: _buildMetricBlock(
+                  label: 'Application Start',
+                  value: job.startDate.isNotEmpty
+                      ? job.startDate
+                      : 'Active Now',
+                  icon: Icons.play_circle_outline_rounded,
+                  color: const Color(0xFF10B981),
+                  palette: palette,
+                ),
+              ),
               const SizedBox(width: 10),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Application Fee',
-                      style: TextStyle(fontSize: 11, color: palette.textSecondary, fontWeight: FontWeight.w500),
-                    ),
-                    const SizedBox(height: 1),
-                    Text(
-                      job.applicationFee.isNotEmpty ? job.applicationFee : 'General/OBC: ₹100 | SC/ST: ₹0',
-                      style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: palette.textPrimary),
-                    ),
-                  ],
+                child: _buildMetricBlock(
+                  label: 'Last Date to Apply',
+                  value: job.lastDate.isNotEmpty
+                      ? job.lastDate
+                      : 'Check Notification',
+                  icon: Icons.alarm_rounded,
+                  color: const Color(0xFFEF4444),
+                  palette: palette,
                 ),
               ),
             ],
@@ -261,38 +295,87 @@ class JobDetailsSheet extends StatelessWidget {
     );
   }
 
-  Widget _buildMetricTile({
-    required IconData icon,
-    required Color iconColor,
-    required String title,
+  // 2. Fee and Age Limit Card
+  Widget _buildFeeAndAgeCard(AppPalette palette) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: palette.glassDecoration(radius: 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.monetization_on_outlined,
+                size: 16,
+                color: palette.accentPrimary,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Application Fee & Age Limit',
+                style: TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w700,
+                  color: palette.textPrimary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _buildInfoRow(
+            label: 'Application Fee',
+            value: job.applicationFee.isNotEmpty
+                ? job.applicationFee
+                : 'Refer to official notification PDF',
+            icon: Icons.receipt_long_rounded,
+            palette: palette,
+          ),
+          Divider(color: palette.cardBorder, height: 16),
+          _buildInfoRow(
+            label: 'Age Eligibility',
+            value: job.ageLimit.isNotEmpty
+                ? job.ageLimit
+                : 'As per recruitment rules & relaxations',
+            icon: Icons.person_outline_rounded,
+            palette: palette,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow({
+    required String label,
     required String value,
+    required IconData icon,
     required AppPalette palette,
   }) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: iconColor.withValues(alpha: 0.15),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(icon, size: 18, color: iconColor),
-        ),
+        Icon(icon, size: 16, color: palette.textSecondary),
         const SizedBox(width: 10),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                title,
-                style: TextStyle(fontSize: 11, color: palette.textSecondary, fontWeight: FontWeight.w500),
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: palette.textSecondary,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
-              const SizedBox(height: 1),
+              const SizedBox(height: 2),
               Text(
                 value,
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: palette.textPrimary),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: palette.textPrimary,
+                  height: 1.3,
+                ),
               ),
             ],
           ),
@@ -301,51 +384,44 @@ class JobDetailsSheet extends StatelessWidget {
     );
   }
 
-  // 2. Application Dates Box: Start & End
-  Widget _buildDatesContainer(AppPalette palette) {
+  Widget _buildMetricBlock({
+    required String label,
+    required String value,
+    required IconData icon,
+    required Color color,
+    required AppPalette palette,
+  }) {
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: palette.glassDecoration(radius: 20),
-      child: Row(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: palette.surfaceGlassHigh,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: palette.cardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Row(
-              children: [
-                Icon(Icons.calendar_today_rounded, size: 16, color: palette.accentGreen),
-                const SizedBox(width: 8),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Application Start', style: TextStyle(fontSize: 11, color: palette.textSecondary)),
-                    const SizedBox(height: 2),
-                    Text(
-                      job.startDate.isNotEmpty ? job.startDate : 'Active Now',
-                      style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: palette.textPrimary),
-                    ),
-                  ],
+          Row(
+            children: [
+              Icon(icon, size: 14, color: color),
+              const SizedBox(width: 5),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w600,
+                  color: palette.textSecondary,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          Container(width: 1, height: 36, color: palette.cardBorder),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Row(
-              children: [
-                Icon(Icons.timer_outlined, size: 18, color: palette.accentRed),
-                const SizedBox(width: 8),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Last Date to Apply', style: TextStyle(fontSize: 11, color: palette.accentRed)),
-                    const SizedBox(height: 2),
-                    Text(
-                      job.lastDate,
-                      style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: palette.accentRed),
-                    ),
-                  ],
-                ),
-              ],
+          const SizedBox(height: 5),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+              color: color,
             ),
           ),
         ],
@@ -353,79 +429,78 @@ class JobDetailsSheet extends StatelessWidget {
     );
   }
 
-  // 3. Qualifications & Eligibility Box
-  Widget _buildQualificationsContainer(AppPalette palette) {
+  // 3. Eligibility & Qualifications Section
+  Widget _buildEligibilityCard(AppPalette palette) {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: palette.glassDecoration(radius: 20),
+      decoration: palette.glassDecoration(radius: 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.school_rounded, size: 18, color: palette.accentBlue),
+              Icon(
+                Icons.school_outlined,
+                size: 16,
+                color: palette.accentPrimary,
+              ),
               const SizedBox(width: 8),
               Text(
-                'Eligibility Criteria',
+                'Eligibility Criteria & Qualifications',
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 13.5,
                   fontWeight: FontWeight.w700,
                   color: palette.textPrimary,
                 ),
               ),
-              const Spacer(),
-              if (job.qualificationsFound.isNotEmpty)
-                Text(
-                  '${job.qualificationsFound.length} degrees recognized',
-                  style: TextStyle(fontSize: 11, color: palette.textSecondary),
-                ),
             ],
           ),
           const SizedBox(height: 12),
 
-          // Chips
+          // Found Qualifications Tags
           if (job.qualificationsFound.isNotEmpty) ...[
             Wrap(
-              spacing: 8,
-              runSpacing: 8,
+              spacing: 6,
+              runSpacing: 6,
               children: job.qualificationsFound.map((q) {
                 return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
-                    color: palette.isDark ? const Color(0xFF1E2D44) : const Color(0xFFE2E8F0),
-                    borderRadius: BorderRadius.circular(10),
+                    color: palette.surfaceGlassHigh,
+                    borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: palette.cardBorder),
                   ),
                   child: Text(
                     q,
                     style: TextStyle(
-                      fontSize: 11.5,
+                      fontSize: 11,
                       fontWeight: FontWeight.w600,
-                      color: palette.accentBlue,
+                      color: palette.textPrimary,
                     ),
                   ),
                 );
               }).toList(),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
           ],
 
           // Eligibility snippet description
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: palette.isDark ? const Color(0xFF0A0F1D) : const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(12),
+              color: palette.isDark ? const Color(0xFF17151C) : Colors.white,
+              borderRadius: BorderRadius.circular(10),
               border: Border.all(color: palette.cardBorder),
             ),
             child: Text(
-              job.eligibilitySnippet.isNotEmpty
-                  ? job.eligibilitySnippet
-                  : 'Refer to official notification PDF for exhaustive post-wise age relaxation and eligibility norms.',
+              job.eligibilitySnippet.isNotEmpty ? job.eligibilitySnippet : 'Refer to official notification PDF for exhaustive post-wise age relaxation and eligibility norms.',
               style: TextStyle(
                 fontSize: 12,
                 color: palette.textPrimary,
-                height: 1.45,
+                height: 1.4,
               ),
             ),
           ),
@@ -435,76 +510,100 @@ class JobDetailsSheet extends StatelessWidget {
   }
 
   // 4. Relevant Links & Actions Container
-  Widget _buildRelevantLinksContainer(BuildContext context, AppPalette palette) {
+  Widget _buildRelevantLinksContainer(
+    BuildContext context,
+    AppPalette palette,
+  ) {
     return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: palette.glassDecoration(
-        radius: 20,
-        customBorder: palette.accentBlue.withValues(alpha: 0.5),
-      ),
+      padding: const EdgeInsets.all(16),
+      decoration: palette.glassDecoration(radius: 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
             'Important Official Links',
             style: TextStyle(
-              fontSize: 14.5,
+              fontSize: 13.5,
               fontWeight: FontWeight.w700,
               color: palette.textPrimary,
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
 
           // 1. PRIMARY BUTTON: Apply Online (Direct Link)
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: palette.accentBlue,
+          FilledButton.icon(
+            style: FilledButton.styleFrom(
+              backgroundColor: palette.isDark
+                  ? const Color(0xFF45404F)
+                  : const Color(0xFF292531),
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              elevation: 4,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              elevation: 0,
             ),
-            onPressed: () => _launchExternalUrl(context, job.applyLink.isNotEmpty ? job.applyLink : job.url),
-            icon: const Icon(Icons.launch_rounded, size: 18),
+            onPressed: () => _launchExternalUrl(
+              context,
+              job.applyLink.isNotEmpty ? job.applyLink : job.url,
+            ),
+            icon: const Icon(Icons.launch_rounded, size: 16),
             label: const Text(
               'Apply Online (Direct Link)',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
 
           // 2. SECONDARY BUTTON: Download Official Notification (PDF)
           OutlinedButton.icon(
             style: OutlinedButton.styleFrom(
-              foregroundColor: palette.accentBlue,
-              side: BorderSide(color: palette.accentBlue),
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              side: BorderSide(color: palette.cardBorder),
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               backgroundColor: palette.surfaceGlass,
             ),
-            onPressed: () => _launchExternalUrl(context, job.notificationLink.isNotEmpty ? job.notificationLink : job.url),
-            icon: const Icon(Icons.picture_as_pdf_rounded, size: 18, color: Color(0xFFEF4444)),
+            onPressed: () => _launchExternalUrl(
+              context,
+              job.notificationLink.isNotEmpty ? job.notificationLink : job.url,
+            ),
+            icon: const Icon(
+              Icons.picture_as_pdf_rounded,
+              size: 16,
+              color: Color(0xFFEF4444),
+            ),
             label: Text(
-              'Download Official Notification (PDF)',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: palette.textPrimary),
+              'Download Notification (PDF)',
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                color: palette.textPrimary,
+              ),
             ),
           ),
 
           // 3. TERTIARY BUTTON: Official Department Website
           if (job.officialWebsite.isNotEmpty) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             OutlinedButton.icon(
               style: OutlinedButton.styleFrom(
-                foregroundColor: palette.textSecondary,
                 side: BorderSide(color: palette.cardBorder),
-                padding: const EdgeInsets.symmetric(vertical: 11),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                padding: const EdgeInsets.symmetric(vertical: 9),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
               onPressed: () => _launchExternalUrl(context, job.officialWebsite),
-              icon: const Icon(Icons.language_rounded, size: 16),
+              icon: const Icon(Icons.language_rounded, size: 15),
               label: Text(
-                'Visit Official Department Website',
-                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500, color: palette.textSecondary),
+                'Official Department Website',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: palette.textSecondary,
+                ),
               ),
             ),
           ],

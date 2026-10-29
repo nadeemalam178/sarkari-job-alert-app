@@ -95,6 +95,78 @@ class ApiService {
     return Qualification.defaultMasterList;
   }
 
+  /// Production Auth: Register new candidate in backend database
+  static Future<Map<String, dynamic>> register({
+    required String name,
+    required String email,
+    required String password,
+    String? phone,
+    String? highestQualification,
+    List<String>? qualifications,
+  }) async {
+    final baseUrl = await StorageService.getServerUrl();
+    final uri = Uri.parse('$baseUrl/api/auth/register');
+
+    try {
+      final response = await http
+          .post(
+            uri,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'name': name.trim(),
+              'email': email.trim().toLowerCase(),
+              'password': password,
+              'phone': phone?.trim(),
+              'highest_qualification': highestQualification ?? 'Graduate',
+              'qualifications': qualifications ?? ['GRADUATE'],
+            }),
+          )
+          .timeout(const Duration(seconds: 4));
+
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200 && data['success'] == true) {
+        return {'success': true, 'token': data['token'], 'user': data['user']};
+      } else {
+        return {'success': false, 'error': data['error'] ?? 'Registration failed'};
+      }
+    } catch (e) {
+      debugPrint('ApiService register network error: $e');
+      return {'success': false, 'networkError': true, 'error': e.toString()};
+    }
+  }
+
+  /// Production Auth: Log in existing candidate against backend database
+  static Future<Map<String, dynamic>> login({
+    required String email,
+    required String password,
+  }) async {
+    final baseUrl = await StorageService.getServerUrl();
+    final uri = Uri.parse('$baseUrl/api/auth/login');
+
+    try {
+      final response = await http
+          .post(
+            uri,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'email': email.trim().toLowerCase(),
+              'password': password,
+            }),
+          )
+          .timeout(const Duration(seconds: 4));
+
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200 && data['success'] == true) {
+        return {'success': true, 'token': data['token'], 'user': data['user']};
+      } else {
+        return {'success': false, 'error': data['error'] ?? 'Login failed'};
+      }
+    } catch (e) {
+      debugPrint('ApiService login network error: $e');
+      return {'success': false, 'networkError': true, 'error': e.toString()};
+    }
+  }
+
   static Future<bool> triggerScrape() async {
     final baseUrl = await StorageService.getServerUrl();
     final uri = Uri.parse('$baseUrl/api/scrape-now');

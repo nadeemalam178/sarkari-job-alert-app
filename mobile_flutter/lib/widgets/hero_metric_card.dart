@@ -18,37 +18,40 @@ class HeroMetricCard extends StatelessWidget {
     final palette = AppPalette.of(context);
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      padding: const EdgeInsets.all(18),
-      decoration: palette.glassDecoration(radius: 22, glow: true),
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: palette.glassDecoration(radius: 20, glow: true),
       child: Row(
         children: [
-          // Left: Electric circular icon
+          // Left: Ambient circular icon
           Container(
-            width: 52,
-            height: 52,
+            width: 48,
+            height: 48,
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF2563EB), Color(0xFF0284C7)],
+              gradient: LinearGradient(
+                colors: palette.isDark
+                    ? const [Color(0xFF45404F), Color(0xFF292531)]
+                    : const [Color(0xFF716879), Color(0xFF45404F)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF2563EB).withValues(alpha: 0.45),
-                  blurRadius: 14,
+                  color: Colors.black.withValues(alpha: 0.25),
+                  blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
               ],
+              border: Border.all(color: palette.cardBorder, width: 1),
             ),
             child: const Icon(
               Icons.notifications_active_rounded,
               color: Color(0xFFFBBF24),
-              size: 26,
+              size: 24,
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 14),
 
           // Center: Main metric and subtitle
           Expanded(
@@ -59,15 +62,15 @@ class HeroMetricCard extends StatelessWidget {
                 Text(
                   '$matchedCount Matched Vacancies',
                   style: TextStyle(
-                    fontSize: 19,
+                    fontSize: 17,
                     fontWeight: FontWeight.w800,
                     color: palette.textPrimary,
                     letterSpacing: -0.3,
                   ),
                 ),
-                const SizedBox(height: 3),
+                const SizedBox(height: 2),
                 Text(
-                  'Out of $totalJobs active govt vacancies today',
+                  'From $totalJobs live postings across 3 portals',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
@@ -81,18 +84,19 @@ class HeroMetricCard extends StatelessWidget {
           // Right: Action arrow button
           InkWell(
             onTap: onTap,
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(20),
             child: Container(
-              width: 44,
-              height: 44,
+              width: 38,
+              height: 38,
               decoration: BoxDecoration(
-                color: palette.isDark ? const Color(0xFF1E2D44) : const Color(0xFFE2E8F0),
-                borderRadius: BorderRadius.circular(22),
+                color: palette.surfaceGlassHigh,
+                borderRadius: BorderRadius.circular(19),
+                border: Border.all(color: palette.cardBorder),
               ),
               child: Icon(
                 Icons.arrow_forward_rounded,
-                color: palette.isDark ? Colors.white70 : const Color(0xFF1E293B),
-                size: 20,
+                color: palette.textPrimary,
+                size: 18,
               ),
             ),
           ),

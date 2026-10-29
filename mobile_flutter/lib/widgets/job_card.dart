@@ -31,52 +31,53 @@ class JobCard extends StatelessWidget {
     final isSarkariResult = job.source.toLowerCase().contains('sarkari');
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 7),
+      margin: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
       decoration: palette.glassDecoration(
-        radius: 20,
-        customBorder: isSaved ? palette.accentBlue : null,
+        radius: 18,
+        customBorder: isSaved ? palette.accentPrimary : null,
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: () => _openDetails(context),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(18),
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                // Header: Portal Source & Last Date
+                // Top Row: Portal Badge, Vacancy Pill & Last Date
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
                       decoration: BoxDecoration(
                         color: isSarkariResult
-                            ? const Color(0xFFF59E0B).withValues(alpha: palette.isDark ? 0.25 : 0.15)
-                            : (palette.isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
+                            ? const Color(0xFFF59E0B).withValues(alpha: palette.isDark ? 0.22 : 0.12)
+                            : palette.surfaceGlassHigh,
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(
                           color: isSarkariResult
                               ? const Color(0xFFF59E0B)
                               : palette.cardBorder,
-                          width: 1,
+                          width: 0.9,
                         ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           if (isSarkariResult) ...[
-                            const Icon(Icons.star, size: 12, color: Color(0xFFF59E0B)),
-                            const SizedBox(width: 4),
+                            const Icon(Icons.star_rounded, size: 12, color: Color(0xFFF59E0B)),
+                            const SizedBox(width: 3),
                           ],
                           Text(
                             job.source,
                             style: TextStyle(
-                              fontSize: 11,
+                              fontSize: 10.5,
                               fontWeight: FontWeight.w700,
-                              letterSpacing: 0.3,
+                              letterSpacing: 0.2,
                               color: isSarkariResult
                                   ? const Color(0xFFD97706)
                                   : palette.textSecondary,
@@ -88,34 +89,36 @@ class JobCard extends StatelessWidget {
                     if (job.totalPosts.isNotEmpty && job.totalPosts != 'Various Posts') ...[
                       const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
                         decoration: BoxDecoration(
-                          color: palette.accentBlue.withValues(alpha: palette.isDark ? 0.2 : 0.1),
+                          color: palette.surfaceGlassHigh,
                           borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: palette.cardBorder, width: 0.8),
                         ),
                         child: Text(
                           job.totalPosts,
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize: 10.5,
                             fontWeight: FontWeight.w700,
-                            color: palette.accentBlue,
+                            color: palette.textPrimary,
                           ),
                         ),
                       ),
                     ],
                     const Spacer(),
                     Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         const Icon(
                           Icons.event_outlined,
                           size: 13,
                           color: Color(0xFFEF4444),
                         ),
-                        const SizedBox(width: 4),
+                        const SizedBox(width: 3),
                         Text(
                           job.lastDate,
                           style: const TextStyle(
-                            fontSize: 11.5,
+                            fontSize: 11,
                             fontWeight: FontWeight.w600,
                             color: Color(0xFFEF4444),
                           ),
@@ -124,17 +127,17 @@ class JobCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
 
                 // Organization
                 if (job.org.isNotEmpty) ...[
                   Text(
                     job.org.toUpperCase(),
                     style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      color: palette.accentCyan,
-                      letterSpacing: 0.5,
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w700,
+                      color: palette.accentPlum,
+                      letterSpacing: 0.4,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -146,13 +149,13 @@ class JobCard extends StatelessWidget {
                 Text(
                   job.title,
                   style: TextStyle(
-                    fontSize: 14.5,
+                    fontSize: 14,
                     fontWeight: FontWeight.w700,
                     color: palette.textPrimary,
-                    height: 1.3,
+                    height: 1.25,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
 
                 // Eligibility snippet
                 if (job.eligibilitySnippet.isNotEmpty) ...[
@@ -161,25 +164,25 @@ class JobCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 11.5,
                       color: palette.textSecondary,
-                      height: 1.35,
+                      height: 1.3,
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
                 ],
 
                 // Qualifications tags
                 if (job.qualificationsFound.isNotEmpty) ...[
                   Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
+                    spacing: 5,
+                    runSpacing: 4,
                     children: job.qualificationsFound.take(4).map((q) {
                       return Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
                         decoration: BoxDecoration(
-                          color: palette.isDark ? const Color(0xFF1E2D44) : const Color(0xFFE2E8F0),
-                          borderRadius: BorderRadius.circular(6),
+                          color: palette.surfaceGlassHigh,
+                          borderRadius: BorderRadius.circular(5),
                           border: Border.all(
                             color: palette.cardBorder,
                             width: 0.8,
@@ -188,7 +191,7 @@ class JobCard extends StatelessWidget {
                         child: Text(
                           q,
                           style: TextStyle(
-                            fontSize: 10.5,
+                            fontSize: 10,
                             fontWeight: FontWeight.w600,
                             color: palette.textSecondary,
                           ),
@@ -196,11 +199,11 @@ class JobCard extends StatelessWidget {
                       );
                     }).toList(),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
                 ],
 
                 Divider(height: 1, color: palette.cardBorder),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
 
                 // Bottom Action Bar
                 Row(
@@ -208,11 +211,11 @@ class JobCard extends StatelessWidget {
                     OutlinedButton.icon(
                       onPressed: onToggleSave,
                       style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                         minimumSize: Size.zero,
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         side: BorderSide(
-                          color: isSaved ? palette.accentBlue : palette.cardBorder,
+                          color: isSaved ? palette.accentPrimary : palette.cardBorder,
                         ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
@@ -220,15 +223,15 @@ class JobCard extends StatelessWidget {
                       ),
                       icon: Icon(
                         isSaved ? Icons.bookmark : Icons.bookmark_border,
-                        size: 15,
-                        color: isSaved ? palette.accentBlue : palette.textSecondary,
+                        size: 14,
+                        color: isSaved ? palette.accentPrimary : palette.textSecondary,
                       ),
                       label: Text(
                         isSaved ? 'Saved' : 'Bookmark',
                         style: TextStyle(
-                          fontSize: 11.5,
+                          fontSize: 11,
                           fontWeight: FontWeight.w600,
-                          color: isSaved ? palette.accentBlue : palette.textSecondary,
+                          color: isSaved ? palette.accentPrimary : palette.textSecondary,
                         ),
                       ),
                     ),
@@ -236,19 +239,20 @@ class JobCard extends StatelessWidget {
                     FilledButton.icon(
                       onPressed: () => _openDetails(context),
                       style: FilledButton.styleFrom(
-                        backgroundColor: palette.accentBlue,
+                        backgroundColor: palette.isDark ? const Color(0xFF45404F) : const Color(0xFF292531),
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         minimumSize: Size.zero,
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
+                        elevation: 0,
                       ),
-                      icon: const Icon(Icons.arrow_forward_rounded, size: 14),
+                      icon: const Icon(Icons.visibility_outlined, size: 14),
                       label: const Text(
-                        'Details & Apply',
-                        style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
+                        'View Details',
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
                       ),
                     ),
                   ],

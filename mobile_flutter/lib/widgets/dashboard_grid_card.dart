@@ -25,7 +25,10 @@ class DashboardGridCard extends StatelessWidget {
         t.contains('b.ed')) {
       return Icons.school_outlined;
     }
-    if (t.contains('railway') || o.contains('railway') || t.contains('ntpc') || t.contains('rrb')) {
+    if (t.contains('railway') ||
+        o.contains('railway') ||
+        t.contains('ntpc') ||
+        t.contains('rrb')) {
       return Icons.train_outlined;
     }
     if (t.contains('police') ||
@@ -37,7 +40,10 @@ class DashboardGridCard extends StatelessWidget {
     if (t.contains('lic') || t.contains('bank') || t.contains('finance')) {
       return Icons.account_balance_outlined;
     }
-    if (t.contains('science') || t.contains('scientist') || t.contains('lab') || t.contains('b.sc')) {
+    if (t.contains('science') ||
+        t.contains('scientist') ||
+        t.contains('lab') ||
+        t.contains('b.sc')) {
       return Icons.biotech_outlined;
     }
     return Icons.work_outline_rounded;
@@ -45,7 +51,9 @@ class DashboardGridCard extends StatelessWidget {
 
   String _getHighlightMetric() {
     if (job.totalPosts.isNotEmpty && job.totalPosts != 'Various Posts') {
-      return job.totalPosts.replaceAll(' Posts', '').replaceAll(' Vacancies', '');
+      return job.totalPosts
+          .replaceAll(' Posts', '')
+          .replaceAll(' Vacancies', '');
     }
     final title = job.title;
     final postMatch = RegExp(
@@ -76,12 +84,12 @@ class DashboardGridCard extends StatelessWidget {
 
     return InkWell(
       onTap: () => _openDetails(context),
-      borderRadius: BorderRadius.circular(24),
+      borderRadius: BorderRadius.circular(18),
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(14),
         decoration: palette.glassDecoration(
-          radius: 24,
-          customBorder: isSaved ? palette.accentBlue : null,
+          radius: 18,
+          customBorder: isSaved ? palette.accentPrimary : null,
           glow: isSaved,
         ),
         child: Column(
@@ -91,28 +99,29 @@ class DashboardGridCard extends StatelessWidget {
             // Top Row: Category Icon & Large Metric
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Container(
-                  width: 38,
-                  height: 38,
+                  width: 36,
+                  height: 36,
                   decoration: BoxDecoration(
-                    color: palette.isDark ? const Color(0xFF1E2D44) : const Color(0xFFE2E8F0),
-                    borderRadius: BorderRadius.circular(12),
+                    color: palette.surfaceGlassHigh,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: palette.cardBorder, width: 0.8),
                   ),
                   child: Icon(
                     _getIconForJob(),
-                    color: palette.isDark ? Colors.white70 : const Color(0xFF1E293B),
-                    size: 20,
+                    color: palette.textPrimary,
+                    size: 18,
                   ),
                 ),
                 Text(
                   _getHighlightMetric(),
                   style: TextStyle(
-                    fontSize: 22,
+                    fontSize: 20,
                     fontWeight: FontWeight.w800,
                     color: palette.textPrimary,
-                    letterSpacing: -0.5,
+                    letterSpacing: -0.4,
                   ),
                 ),
               ],
@@ -121,13 +130,14 @@ class DashboardGridCard extends StatelessWidget {
             // Middle: Organization & Title
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   job.org.isNotEmpty ? job.org : job.source,
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 10.5,
                     fontWeight: FontWeight.w600,
-                    color: palette.textSecondary,
+                    color: palette.accentPlum,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -136,7 +146,7 @@ class DashboardGridCard extends StatelessWidget {
                 Text(
                   job.title,
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 12.5,
                     fontWeight: FontWeight.w700,
                     color: palette.textPrimary,
                     height: 1.25,
@@ -152,13 +162,14 @@ class DashboardGridCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
                       Icons.schedule,
                       size: 11,
                       color: palette.textSecondary,
                     ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 3),
                     Text(
                       job.lastDate,
                       style: TextStyle(
@@ -169,16 +180,18 @@ class DashboardGridCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                // Tactile Switch
+                // Compact tactile switch
                 Transform.scale(
-                  scale: 0.68,
+                  scale: 0.65,
                   alignment: Alignment.centerRight,
                   child: Switch(
                     value: isSaved,
                     activeThumbColor: Colors.white,
-                    activeTrackColor: palette.accentBlue,
+                    activeTrackColor: palette.isDark
+                        ? const Color(0xFF45404F)
+                        : const Color(0xFF292531),
                     inactiveThumbColor: palette.textSecondary,
-                    inactiveTrackColor: palette.isDark ? const Color(0xFF1E2D44) : const Color(0xFFCBD5E1),
+                    inactiveTrackColor: palette.surfaceGlassHigh,
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     onChanged: (_) => onToggleSave(),
                   ),
