@@ -91,37 +91,51 @@ class JobPost {
     );
   }
 
+  bool get isExpired {
+    final lower = lastDate.toLowerCase().trim();
+    if (lower.contains('cancelled') || lower.contains('closed')) return true;
+    final parsed = _parseDateTime(lastDate);
+    if (parsed != null) {
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      if (parsed.isBefore(today)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   bool get isUpcoming {
+    if (isExpired) return false;
+    final parsedStart = _parseDateTime(startDate);
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    if (parsedStart != null) {
+      return parsedStart.isAfter(today);
+    }
+
     final lowerStart = startDate.toLowerCase().trim();
     final lowerTitle = title.toLowerCase();
 
-    // 1. Explicit text cues indicating future / upcoming status
     if (lowerStart.contains('link activate soon') ||
         lowerStart.contains('notify soon') ||
         lowerStart.contains('coming soon') ||
         lowerStart.contains('activate soon') ||
+        lowerStart.contains('available soon') ||
+        lowerStart.contains('opening soon') ||
+        lowerStart.contains('calendar') ||
         lowerStart.contains('to be notified') ||
-        lowerTitle.contains('form 2027') ||
-        lowerStart.contains('2027')) {
+        lowerTitle.contains('form 2027')) {
       return true;
-    }
-
-    // 2. Date parsing (check if start date is strictly in the future)
-    final parsed = _parseStartDateTime(startDate);
-    if (parsed != null) {
-      final now = DateTime.now();
-      final today = DateTime(now.year, now.month, now.day);
-      if (parsed.isAfter(today)) {
-        return true;
-      }
     }
 
     return false;
   }
 
-  bool get isActive => !isUpcoming;
+  bool get isActive => !isUpcoming && !isExpired;
 
-  static DateTime? _parseStartDateTime(String raw) {
+  static DateTime? _parseDateTime(String raw) {
     if (raw.isEmpty) return null;
     final s = raw.toLowerCase().trim();
 
@@ -145,6 +159,22 @@ class JobPost {
       final d = int.tryParse(wordMatch.group(1)!) ?? 1;
       final mStr = wordMatch.group(2)!;
       final y = int.tryParse(wordMatch.group(3)!) ?? 2026;
+      final m = _monthNameToNumber(mStr);
+      if (m != null) {
+        try {
+          return DateTime(y, m, d);
+        } catch (_) {
+          return null;
+        }
+      }
+    }
+
+    // Match Month DD, YYYY (e.g. November 05, 2026)
+    final mdyMatch = RegExp(r'([a-z]+)\s+(\d{1,2}),?\s+(\d{4})').firstMatch(s);
+    if (mdyMatch != null) {
+      final mStr = mdyMatch.group(1)!;
+      final d = int.tryParse(mdyMatch.group(2)!) ?? 1;
+      final y = int.tryParse(mdyMatch.group(3)!) ?? 2026;
       final m = _monthNameToNumber(mStr);
       if (m != null) {
         try {

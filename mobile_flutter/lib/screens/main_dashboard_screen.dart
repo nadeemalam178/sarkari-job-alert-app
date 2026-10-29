@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:ui';
+
 import 'package:flutter/material.dart';
 
 import '../models/job_post.dart';
@@ -170,8 +170,12 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
   void _recomputeCaches() {
     // 1. Matched Jobs for "For You"
     _matchedJobs = _allJobs.where((job) {
-      return QualificationMatcher.isJobEligible(job, _selectedQualifications);
+      final highestDeg = _selectedQualifications.isNotEmpty ? _selectedQualifications.first : 'GRADUATE';
+      return QualificationMatcher.isJobEligible(job, _selectedQualifications, highestDegree: highestDeg);
     }).toList();
+
+    final highest = _selectedQualifications.isNotEmpty ? _selectedQualifications.first : 'GRADUATE';
+    _matchedJobs = QualificationMatcher.sortJobsByRelevance(_matchedJobs, _selectedQualifications, highest);
 
     _forYouActiveJobs = _matchedJobs.where((j) => j.isActive).toList();
     _forYouUpcomingJobs = _matchedJobs.where((j) => j.isUpcoming).toList();
@@ -552,29 +556,24 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                     ),
                   );
                 },
-                child: ClipRect(
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: palette.background.withValues(alpha: 0.85),
-                        border: Border(
-                          bottom: BorderSide(
-                            color: palette.cardBorder.withValues(alpha: 0.5),
-                            width: 0.8,
-                          ),
-                        ),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: palette.isDark ? const Color(0xF616131D) : const Color(0xF8FFFFFF),
+                    border: Border(
+                      bottom: BorderSide(
+                        color: palette.cardBorder.withValues(alpha: 0.6),
+                        width: 0.8,
                       ),
-                      child: SafeArea(
-                        bottom: false,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            _buildTopHeader(palette),
-                            if (!_bannerDismissed) _buildNotificationBanner(palette),
-                          ],
-                        ),
-                      ),
+                    ),
+                  ),
+                  child: SafeArea(
+                    bottom: false,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildTopHeader(palette),
+                        if (!_bannerDismissed) _buildNotificationBanner(palette),
+                      ],
                     ),
                   ),
                 ),
@@ -1222,6 +1221,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                             _exploreViewBySector = !_exploreViewBySector;
                           });
                         },
+    
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                           decoration: BoxDecoration(

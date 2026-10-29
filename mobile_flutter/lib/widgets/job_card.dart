@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/job_post.dart';
 import '../theme/app_theme.dart';
 import 'job_details_sheet.dart';
-import 'motion_spells.dart';
+
 
 class JobCard extends StatelessWidget {
   final JobPost job;
@@ -225,7 +225,14 @@ class JobCard extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         if (_isUrgent) ...[
-                          const PulsingBadgeDot(size: 7, color: Color(0xFFEF4444)),
+                          Container(
+                            width: 6.5,
+                            height: 6.5,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFEF4444),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
                           const SizedBox(width: 5),
                         ] else ...[
                           const Icon(
@@ -311,11 +318,15 @@ class JobCard extends StatelessWidget {
               // Bottom Action Bar with FavoriteBurst
               Row(
                 children: [
-                  FavoriteBurst(
-                    isSaved: isSaved,
-                    onToggle: onToggleSave,
-                    activeColor: palette.accentPrimary,
-                    inactiveColor: palette.textSecondary,
+                  IconButton(
+                    icon: Icon(
+                      isSaved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+                      color: isSaved ? palette.accentPrimary : palette.textSecondary,
+                      size: 20,
+                    ),
+                    onPressed: onToggleSave,
+                    constraints: const BoxConstraints(),
+                    padding: const EdgeInsets.all(4),
                   ),
                   const SizedBox(width: 8),
                   Text(
@@ -327,9 +338,9 @@ class JobCard extends StatelessWidget {
                     ),
                   ),
                   const Spacer(),
-                  TactilePress(
+                  InkWell(
                     onTap: () => _openDetails(context),
-                    scaleFactor: 0.94,
+                    borderRadius: BorderRadius.circular(8),
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(

@@ -167,42 +167,138 @@ class QualificationMatcher {
     return streams;
   }
 
+  static const _engineeringQuals = {
+    'B.TECH / B.E',
+    'B.TECH CS / IT',
+    'B.TECH CIVIL',
+    'B.TECH MECHANICAL',
+    'B.TECH ELECTRICAL',
+    'ENGINEERING',
+  };
+
+  static const _teachingQuals = {
+    'B.ED',
+    'D.EL.ED / BTC',
+    'CTET',
+    'CTET PAPER 1',
+    'CTET PAPER 2',
+    'STET',
+    'STET / STATE TET',
+    'TEACHER',
+    'TEACHING',
+  };
+
+  static const _medicalQuals = {
+    'MBBS',
+    'MBBS / BDS',
+    'B.SC NURSING',
+    'NURSING (B.SC / GNM)',
+    'B.PHARMA',
+    'B.PHARM / D.PHARM',
+    'D.PHARMA',
+    'ANM',
+    'GNM',
+  };
+
+  static const _lawQuals = {
+    'LLB',
+    'LAW',
+  };
+
   /// Determines if a job post matches the candidate's qualifications
-  static bool isJobEligible(JobPost job, Iterable<String> candidateQuals) {
+  static bool isJobEligible(JobPost job, Iterable<String> candidateQuals, {String? highestDegree}) {
     if (candidateQuals.isEmpty) return true;
     final eligibleStreams = getEligibleStreams(candidateQuals);
 
     final jobQuals = job.qualificationsFound
         .map((e) => e.toUpperCase().trim())
         .toSet();
+
+    final combinedText = '${job.title} ${job.eligibilitySnippet} ${job.org}'.toUpperCase();
+    final isGenericAnyGraduate = combinedText.contains('ANY STREAM') ||
+        combinedText.contains('ANY GRADUATE') ||
+        combinedText.contains('DEGREE IN ANY STREAM') ||
+        combinedText.contains('BACHELOR DEGREE IN ANY STREAM') ||
+        combinedText.contains('GRADUATION IN ANY STREAM') ||
+        combinedText.contains('RRB NTPC') ||
+        combinedText.contains('SSC CGL') ||
+        combinedText.contains('BANK PO') ||
+        combinedText.contains('PROBATIONARY OFFICER') ||
+        combinedText.contains('CLERK');
+
+    // 1. Specialized Engineering Protection:
+    // If a job requires B.Tech/Engineering and is NOT an Any-Stream Graduate post,
+    // candidates without Engineering cannot apply (e.g. B.Sc, BA, B.Com excluded).
+    final isJobEngineering = jobQuals.any((q) => _engineeringQuals.contains(q)) ||
+        (combinedText.contains('B.TECH') || combinedText.contains('B.E.') || combinedText.contains('ENGINEERING DEGREE'));
+    if (isJobEngineering && !isGenericAnyGraduate) {
+      final candidateHasEngineering = candidateQuals.any((q) {
+        final upper = q.toUpperCase();
+        return _engineeringQuals.any((eq) => upper.contains(eq)) || upper.contains('DIPLOMA');
+      });
+      if (!candidateHasEngineering) {
+        return false;
+      }
+    }
+
+    // 2. Specialized Teaching Protection:
+    final isJobTeaching = jobQuals.any((q) => _teachingQuals.contains(q)) ||
+        (combinedText.contains('TEACHER') || combinedText.contains('B.ED') || combinedText.contains('CTET'));
+    if (isJobTeaching && !isGenericAnyGraduate) {
+      final candidateHasTeaching = candidateQuals.any((q) {
+        final upper = q.toUpperCase();
+        return _teachingQuals.any((tq) => upper.contains(tq)) || upper.contains('TEACH');
+      });
+      if (!candidateHasTeaching) {
+        return false;
+      }
+    }
+
+    // 3. Specialized Medical Protection:
+    final isJobMedical = jobQuals.any((q) => _medicalQuals.contains(q)) ||
+        (combinedText.contains('MBBS') || combinedText.contains('MEDICAL OFFICER'));
+    if (isJobMedical && !isGenericAnyGraduate) {
+      final candidateHasMedical = candidateQuals.any((q) {
+        final upper = q.toUpperCase();
+        return _medicalQuals.any((mq) => upper.contains(mq)) || upper.contains('MEDIC');
+      });
+      if (!candidateHasMedical) {
+        return false;
+      }
+    }
+
+    // 4. Specialized Law Protection:
+    final isJobLaw = jobQuals.any((q) => _lawQuals.contains(q)) || combinedText.contains('LLB');
+    if (isJobLaw && !isGenericAnyGraduate) {
+      final candidateHasLaw = candidateQuals.any((q) {
+        final upper = q.toUpperCase();
+        return upper.contains('LLB') || upper.contains('LAW');
+      });
+      if (!candidateHasLaw) {
+        return false;
+      }
+    }
+
     if (jobQuals.isEmpty) return true;
 
-    // 1. Direct overlap with candidate's eligible streams
+    // Direct overlap with candidate's eligible streams
     for (final stream in eligibleStreams) {
       if (jobQuals.contains(stream)) return true;
     }
 
-    // 2. Semantic matching in text (Railway RRB NTPC, SSC CGL, etc.)
-    final combinedText = '${job.title} ${job.eligibilitySnippet} ${job.org}'
-        .toUpperCase();
+    // Semantic matching for stream-level eligibility
     if (eligibleStreams.contains('B.SC')) {
       if (combinedText.contains('B.SC') ||
           combinedText.contains('SCIENCE') ||
-          combinedText.contains('ANY GRADUATE') ||
-          combinedText.contains('BACHELOR DEGREE') ||
-          combinedText.contains('DEGREE IN ANY STREAM') ||
-          combinedText.contains('RRB NTPC') ||
-          combinedText.contains('RAILWAY')) {
+          isGenericAnyGraduate) {
         return true;
       }
     }
 
     if (eligibleStreams.contains('GRADUATE')) {
-      if (combinedText.contains('GRADUATE') ||
-          combinedText.contains('DEGREE') ||
-          combinedText.contains('ANY STREAM') ||
-          combinedText.contains('NTPC') ||
-          combinedText.contains('CGL')) {
+      if (isGenericAnyGraduate ||
+          combinedText.contains('GRADUATE') ||
+          combinedText.contains('DEGREE')) {
         return true;
       }
     }
@@ -210,8 +306,7 @@ class QualificationMatcher {
     if (eligibleStreams.contains('10TH') && combinedText.contains('10TH')) {
       return true;
     }
-    if (eligibleStreams.contains('12TH / 10+2') &&
-        combinedText.contains('12TH')) {
+    if (eligibleStreams.contains('12TH / 10+2') && combinedText.contains('12TH')) {
       return true;
     }
     if (eligibleStreams.contains('B.ED') && combinedText.contains('B.ED')) {
@@ -225,5 +320,139 @@ class QualificationMatcher {
     }
 
     return false;
+  }
+
+  /// Calculates a relevance score for ranking in "For You".
+  /// Highest qualification exact matches score highest (100+ points).
+  static int computeRelevanceScore(JobPost job, List<String> candidateQuals, String? highestDegree) {
+    if (candidateQuals.isEmpty) return 0;
+    final highest = (highestDegree != null && highestDegree.isNotEmpty)
+        ? highestDegree.toUpperCase().trim()
+        : candidateQuals.first.toUpperCase().trim();
+
+    final jobQuals = job.qualificationsFound.map((e) => e.toUpperCase().trim()).toSet();
+    final combinedText = '${job.title} ${job.eligibilitySnippet} ${job.org}'.toUpperCase();
+
+    int score = 0;
+
+    // 1. Direct match with candidate's HIGHEST educational qualification (Primary Tier: +120)
+    if (highest == 'B.TECH / B.E') {
+      if (jobQuals.any((q) => _engineeringQuals.contains(q)) ||
+          combinedText.contains('B.TECH') ||
+          combinedText.contains('B.E.') ||
+          combinedText.contains('ENGINEER')) {
+        score += 140;
+      }
+    } else if (highest == 'B.SC') {
+      if (jobQuals.contains('B.SC') || combinedText.contains('B.SC') || combinedText.contains('SCIENCE')) {
+        score += 140;
+      }
+    } else if (highest == 'POST GRADUATE' || highest == 'MCA') {
+      if (jobQuals.contains('POST GRADUATE') ||
+          jobQuals.contains('MCA') ||
+          combinedText.contains('MASTER') ||
+          combinedText.contains('POST GRADUATE')) {
+        score += 140;
+      }
+    } else if (highest == 'DIPLOMA') {
+      if (jobQuals.contains('DIPLOMA') || combinedText.contains('DIPLOMA') || combinedText.contains('POLYTECHNIC')) {
+        score += 140;
+      }
+    } else if (highest == 'MBBS / BDS') {
+      if (jobQuals.contains('MBBS') || combinedText.contains('MBBS') || combinedText.contains('MEDICAL')) {
+        score += 140;
+      }
+    } else if (highest == 'LLB') {
+      if (jobQuals.contains('LLB') || combinedText.contains('LAW') || combinedText.contains('LEGAL')) {
+        score += 140;
+      }
+    } else if (highest == '12TH / 10+2' || highest == '12TH PCM' || highest == '12TH PCB') {
+      if (jobQuals.contains('12TH / 10+2') || combinedText.contains('12TH') || combinedText.contains('INTERMEDIATE')) {
+        score += 120;
+      }
+    } else if (highest == '10TH') {
+      if (jobQuals.contains('10TH') || combinedText.contains('10TH') || combinedText.contains('MATRIC')) {
+        score += 120;
+      }
+    } else if (highest == 'GRADUATE') {
+      if (jobQuals.contains('GRADUATE') || combinedText.contains('GRADUATE')) {
+        score += 100;
+      }
+    }
+
+    // 2. Additional Certifications & Specializations (Secondary Tier: +60)
+    for (final raw in candidateQuals) {
+      final q = raw.toUpperCase().trim();
+      if (q == highest) continue; // Already counted
+
+      if (_teachingQuals.contains(q)) {
+        if (jobQuals.any((jq) => _teachingQuals.contains(jq)) || combinedText.contains('TEACHER')) {
+          score += 60;
+        }
+      }
+      if (q.contains('TYPING')) {
+        if (jobQuals.contains('TYPING') || combinedText.contains('TYPING') || combinedText.contains('WPM')) {
+          score += 50;
+        }
+      }
+      if (q.contains('STENO')) {
+        if (jobQuals.contains('STENOGRAPHER') || combinedText.contains('STENO')) {
+          score += 50;
+        }
+      }
+      if (q == 'ITI') {
+        if (jobQuals.contains('ITI') || combinedText.contains('ITI')) {
+          score += 50;
+        }
+      }
+      if (q.contains('GATE')) {
+        if (combinedText.contains('GATE')) {
+          score += 60;
+        }
+      }
+    }
+
+    // 3. General Graduate Baseline Eligibility (+35)
+    final isGraduate = highest == 'B.TECH / B.E' ||
+        highest == 'B.SC' ||
+        highest == 'B.COM' ||
+        highest == 'BA' ||
+        highest == 'BCA' ||
+        highest == 'BBA' ||
+        highest == 'GRADUATE' ||
+        highest == 'POST GRADUATE';
+
+    if (score < 100 && isGraduate) {
+      if (jobQuals.contains('GRADUATE') || combinedText.contains('GRADUATE') || combinedText.contains('DEGREE')) {
+        score += 35;
+      }
+    }
+
+    // 4. Secondary lower-tier eligibility (12th: +15, 10th: +5)
+    if (score == 0) {
+      if (jobQuals.contains('12TH / 10+2') || combinedText.contains('12TH')) {
+        score += 15;
+      } else if (jobQuals.contains('10TH') || combinedText.contains('10TH')) {
+        score += 5;
+      }
+    }
+
+    return score;
+  }
+
+  /// Sorts a list of jobs with highest qualification matches first.
+  static List<JobPost> sortJobsByRelevance(List<JobPost> jobs, List<String> candidateQuals, String? highestDegree) {
+    final scored = jobs.map((job) {
+      final score = computeRelevanceScore(job, candidateQuals, highestDegree);
+      return MapEntry(job, score);
+    }).toList();
+
+    scored.sort((a, b) {
+      final cmp = b.value.compareTo(a.value);
+      if (cmp != 0) return cmp;
+      return b.key.id.compareTo(a.key.id);
+    });
+
+    return scored.map((e) => e.key).toList();
   }
 }

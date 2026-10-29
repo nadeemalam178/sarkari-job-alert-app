@@ -50,20 +50,20 @@ QUALIFICATION_RULES = {
     "NTT": [r"\bntt\b", r"\bnursery\s*teacher\b"],
 
     # Graduation (Bachelor Degrees)
-    "GRADUATE": [r"\bgraduate\b", r"\bgraduation\b", r"\bbachelor'?s?\s*degree\b", r"\bany\s*graduate\b", r"\bdegree\s*in\s*any\s*stream\b", r"\bdegree\s*from\s*any\s*recognized\b"],
+    "GRADUATE": [r"\bany\s*graduate\b", r"\bdegree\s*in\s*any\s*stream\b", r"\bbachelor\s*degree\s*in\s*any\s*stream\b", r"\bgraduation\b", r"\bgraduate\b"],
     "BA": [r"\bb\.?a\.\b", r"\bbachelor\s*of\s*arts\b"],
-    "B.SC": [r"\bb\.?sc\b", r"\bbachelor\s*of\s*science\b"],
+    "B.SC": [r"\bb\.?\s*sc\b(?!\s*\(?\s*engg)", r"\bbachelor\s*of\s*science\b"],
     "B.COM": [r"\bb\.?com\b", r"\bbachelor\s*of\s*commerce\b"],
     "BBA": [r"\bbba\b", r"\bbachelor\s*of\s*business\b"],
     "BCA": [r"\bbca\b", r"\bbachelor\s*of\s*computer\s*application\b"],
     "B.LIB": [r"\bb\.?\s*lib\b", r"\blibrary\s*science\b"],
 
     # Engineering Degrees (B.Tech / B.E)
-    "B.TECH / B.E": [r"\bb\.?\s*tech\b", r"\bb\.e\.\b", r"\bb\.e\b(?!\s*a\b)", r"\bbachelor\s*of\s*engineering\b", r"\bbachelor\s*of\s*technology\b", r"\bengineering\s*degree\b"],
-    "B.TECH CIVIL": [r"\bb\.?tech.*?civil\b", r"\bb\.?e.*?civil\b"],
-    "B.TECH MECHANICAL": [r"\bb\.?tech.*?mech\b", r"\bb\.?e.*?mech\b"],
-    "B.TECH ELECTRICAL": [r"\bb\.?tech.*?electr\b", r"\bb\.?e.*?electr\b"],
-    "B.TECH CS / IT": [r"\bb\.?tech.*?(?:cs|computer|it)\b", r"\bb\.?e.*?(?:cs|computer|it)\b"],
+    "B.TECH / B.E": [r"\bb\.?\s*tech\b", r"\bb\.e\.\b", r"\bbachelor\s*of\s*engineering\b", r"\bbachelor\s*of\s*technology\b", r"\bengineering\s*degree\b", r"\bb\.?\s*e\s*/\s*b\.?\s*tech\b", r"\bb\.?tech\s*/\s*b\.?e\b"],
+    "B.TECH CIVIL": [r"\bb\.?tech.*?civil\b", r"\bb\.e\..*?civil\b", r"\bcivil\s*engineering\b"],
+    "B.TECH MECHANICAL": [r"\bb\.?tech.*?mech\b", r"\bb\.e\..*?mech\b", r"\bmechanical\s*engineering\b"],
+    "B.TECH ELECTRICAL": [r"\bb\.?tech.*?electr\b", r"\bb\.e\..*?electr\b", r"\belectrical\s*engineering\b"],
+    "B.TECH CS / IT": [r"\bb\.?\s*tech.*?(?:cs|computer|information\s*technology|it\b)", r"\bb\.e\..*?(?:cs|computer|information\s*technology)", r"\bcomputer\s*science\s*engineering\b"],
 
     # Medical, Nursing & Pharmacy
     "ANM": [r"\banm\b", r"\bauxiliary\s*nurse\b"],
@@ -88,7 +88,7 @@ QUALIFICATION_RULES = {
     # Special Skills
     "TYPING": [r"\btyping\b", r"\bwpm\b", r"\bdata\s*entry\b", r"\bdeo\b"],
     "STENOGRAPHER": [r"\bstenographer\b", r"\bsteno\b", r"\bshorthand\b"],
-    "POLICE / DEFENCE": [r"\bpolice\b", r"\bconstable\b", r"\bsub\s*inspector\b", r"\bsi\b", r"\barmy\b", r"\bnavy\b", r"\bairforce\b", r"\bagniveer\b"],
+    "POLICE / DEFENCE": [r"\bpolice\b", r"\bconstable\b", r"\bsub\s*inspector\b", r"\bs\.i\.\b", r"\barmy\b", r"\bnavy\b", r"\bairforce\b", r"\bagniveer\b"],
     "COMPUTER": [r"\bcomputer\b", r"\bccc\b", r"\bo\s*level\b", r"\bit\b", r"\bsoftware\b", r"\bprogrammer\b"]
 }
 
@@ -325,7 +325,9 @@ def parse_sarkari_cm_detail(job_url, pre_title):
             if em:
                 snippet = em.group(1).strip()
 
-        quals_found = extract_qualifications_from_text(page_text + " " + pre_title)
+        quals_found = extract_qualifications_from_text(f"{pre_title} | {snippet}")
+        if not quals_found and page_text:
+            quals_found = extract_qualifications_from_text(f"{pre_title} | {page_text[:600]}")
 
         return {
             "start_date": start_date or "Active Now",
@@ -388,6 +390,8 @@ def parse_sarkari_detail(job_url):
         start_m = re.search(r"Application\s*Begin\s*:\s*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})", page_text, re.I)
         if start_m:
             start_date = start_m.group(1)
+        elif any(w in page_text.lower() for w in ["link activate soon", "link will be active soon", "notify soon", "available soon"]):
+            start_date = "Link Activate Soon"
 
         last_date = ""
         date_match = re.search(r"Last Date\s*(?:for Apply Online)?\s*:\s*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})", page_text, re.I)
@@ -397,6 +401,10 @@ def parse_sarkari_detail(job_url):
             dm2 = re.search(r"(\d{1,2}/\d{1,2}/202\d)", page_text)
             if dm2:
                 last_date = dm2.group(1)
+            else:
+                dm_word = re.search(r"Last Date\s*(?:for Apply Online)?\s*:\s*([^\n\r|]{5,35})", page_text, re.I)
+                if dm_word:
+                    last_date = dm_word.group(1).strip()
 
         # 2. Total Posts / Vacancy
         total_posts = ""
@@ -472,7 +480,9 @@ def parse_sarkari_detail(job_url):
         if not snippet:
             snippet = "Refer to the official Sarkari Result notification link for full eligibility details."
 
-        found_quals = extract_qualifications_from_text(page_text)
+        found_quals = extract_qualifications_from_text(f"{org} | {snippet}")
+        if not found_quals and page_text:
+            found_quals = extract_qualifications_from_text(page_text[:600])
         return {
             "start_date": start_date or "Active Now",
             "last_date": last_date or "Check Notification",
