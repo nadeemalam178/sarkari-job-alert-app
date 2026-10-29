@@ -53,6 +53,11 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
   bool _isLoading = false;
   bool _bannerDismissed = false;
   final ValueNotifier<bool> _isBarsVisible = ValueNotifier<bool>(true);
+
+  // Status Filter: 0 = Active, 1 = Upcoming
+  int _forYouStatusFilter = 0;
+  int _exploreStatusFilter = 0;
+
   String? _expandedSectorIdForYou;
   String? _expandedSectorIdExplore;
   bool _exploreViewBySector = true;
@@ -70,9 +75,17 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
 
   // Cached Filtered Collections for 0ms Rendering
   List<JobPost> _matchedJobs = [];
+  List<JobPost> _forYouActiveJobs = [];
+  List<JobPost> _forYouUpcomingJobs = [];
+
   List<JobPost> _filteredExploreJobs = [];
-  final Map<String, List<JobPost>> _forYouSectorJobs = {};
-  final Map<String, List<JobPost>> _exploreSectorJobs = {};
+  List<JobPost> _exploreActiveJobs = [];
+  List<JobPost> _exploreUpcomingJobs = [];
+
+  final Map<String, List<JobPost>> _forYouSectorActiveJobs = {};
+  final Map<String, List<JobPost>> _forYouSectorUpcomingJobs = {};
+  final Map<String, List<JobPost>> _exploreSectorActiveJobs = {};
+  final Map<String, List<JobPost>> _exploreSectorUpcomingJobs = {};
 
   static const List<SectorHub> _sectors = [
     SectorHub(
@@ -160,6 +173,9 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
       return QualificationMatcher.isJobEligible(job, _selectedQualifications);
     }).toList();
 
+    _forYouActiveJobs = _matchedJobs.where((j) => j.isActive).toList();
+    _forYouUpcomingJobs = _matchedJobs.where((j) => j.isUpcoming).toList();
+
     // 2. Filtered Explore Jobs for "Explore"
     var list = _allJobs;
     if (_selectedSource != 'All') {
@@ -174,20 +190,34 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
           j.qualificationsFound.any((qual) => qual.toLowerCase().contains(q))).toList();
     }
     _filteredExploreJobs = list;
+    _exploreActiveJobs = _filteredExploreJobs.where((j) => j.isActive).toList();
+    _exploreUpcomingJobs = _filteredExploreJobs.where((j) => j.isUpcoming).toList();
 
-    // 3. Sector mapping for "For You"
-    _forYouSectorJobs.clear();
+    // 3. Pre-compute For You Sector Maps
+    _forYouSectorActiveJobs.clear();
+    _forYouSectorUpcomingJobs.clear();
     for (final sec in _sectors) {
-      _forYouSectorJobs[sec.id] = _matchedJobs.where((j) {
+      _forYouSectorActiveJobs[sec.id] = _forYouActiveJobs.where((j) {
+        final text = '${j.title} ${j.org} ${j.eligibilitySnippet} ${j.qualificationsFound.join(" ")}'.toUpperCase();
+        return sec.keywords.any((k) => text.contains(k));
+      }).toList();
+
+      _forYouSectorUpcomingJobs[sec.id] = _forYouUpcomingJobs.where((j) {
         final text = '${j.title} ${j.org} ${j.eligibilitySnippet} ${j.qualificationsFound.join(" ")}'.toUpperCase();
         return sec.keywords.any((k) => text.contains(k));
       }).toList();
     }
 
-    // 4. Sector mapping for "Explore"
-    _exploreSectorJobs.clear();
+    // 4. Pre-compute Explore Sector Maps
+    _exploreSectorActiveJobs.clear();
+    _exploreSectorUpcomingJobs.clear();
     for (final sec in _sectors) {
-      _exploreSectorJobs[sec.id] = _filteredExploreJobs.where((j) {
+      _exploreSectorActiveJobs[sec.id] = _exploreActiveJobs.where((j) {
+        final text = '${j.title} ${j.org} ${j.eligibilitySnippet} ${j.qualificationsFound.join(" ")}'.toUpperCase();
+        return sec.keywords.any((k) => text.contains(k));
+      }).toList();
+
+      _exploreSectorUpcomingJobs[sec.id] = _exploreUpcomingJobs.where((j) {
         final text = '${j.title} ${j.org} ${j.eligibilitySnippet} ${j.qualificationsFound.join(" ")}'.toUpperCase();
         return sec.keywords.any((k) => text.contains(k));
       }).toList();
@@ -343,6 +373,127 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     return _allJobs.where((job) => _savedJobIds.contains(job.id)).toList();
   }
 
+  // --- Top Status Toggle: Active vs Upcoming ---
+  Widget _buildStatusToggle({
+    required int selectedIndex,
+    required int activeCount,
+    required int upcomingCount,
+    required AppPalette palette,
+    required ValueChanged<int> onSelect,
+  }) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 6, 16, 10),
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: palette.surfaceGlassHigh,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: palette.cardBorder, width: 0.9),
+      ),
+      child: Row(
+        children: [
+          // 1. Active Jobs Tab
+          Expanded(
+            child: GestureDetector(
+              onTap: () => onSelect(0),
+              behavior: HitTestBehavior.opaque,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOutCubic,
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                decoration: BoxDecoration(
+                  color: selectedIndex == 0
+                      ? (palette.isDark
+                          ? const Color(0xFF10B981).withValues(alpha: 0.22)
+                          : const Color(0xFF10B981).withValues(alpha: 0.14))
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: selectedIndex == 0
+                        ? const Color(0xFF10B981).withValues(alpha: 0.6)
+                        : Colors.transparent,
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 7,
+                      height: 7,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF10B981),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Active ($activeCount)',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: selectedIndex == 0 ? FontWeight.w800 : FontWeight.w600,
+                        color: selectedIndex == 0
+                            ? (palette.isDark ? const Color(0xFF34D399) : const Color(0xFF059669))
+                            : palette.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // 2. Upcoming Jobs Tab
+          Expanded(
+            child: GestureDetector(
+              onTap: () => onSelect(1),
+              behavior: HitTestBehavior.opaque,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOutCubic,
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                decoration: BoxDecoration(
+                  color: selectedIndex == 1
+                      ? (palette.isDark
+                          ? const Color(0xFFF59E0B).withValues(alpha: 0.22)
+                          : const Color(0xFFF59E0B).withValues(alpha: 0.14))
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: selectedIndex == 1
+                        ? const Color(0xFFF59E0B).withValues(alpha: 0.6)
+                        : Colors.transparent,
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.schedule_rounded,
+                      size: 13,
+                      color: Color(0xFFF59E0B),
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      'Upcoming ($upcomingCount)',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: selectedIndex == 1 ? FontWeight.w800 : FontWeight.w600,
+                        color: selectedIndex == 1
+                            ? (palette.isDark ? const Color(0xFFFBBF24) : const Color(0xFFD97706))
+                            : palette.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
@@ -468,7 +619,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     );
   }
 
-  // --- Top Header with Tactile Avatar and Status ---
+  // --- Top Header with Avatar and Active Profile Status ---
   Widget _buildTopHeader(AppPalette palette) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 10, 20, 6),
@@ -661,6 +812,10 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
 
   // --- TAB 0: "FOR YOU" (Strictly Filtered Matched Vacancies Only) ---
   Widget _buildForYouDashboardView(AppPalette palette, double topInset, double bottomInset) {
+    final isUpcoming = _forYouStatusFilter == 1;
+    final currentList = isUpcoming ? _forYouUpcomingJobs : _forYouActiveJobs;
+    final sectorMap = isUpcoming ? _forYouSectorUpcomingJobs : _forYouSectorActiveJobs;
+
     return RefreshIndicator(
       onRefresh: _handlePullRefresh,
       color: palette.accentPrimary,
@@ -670,19 +825,34 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 1. Hero Metric Card - FOR YOU (Strictly Matched Jobs, stays on For You)
+            // 1. Hero Metric Card - FOR YOU (Strictly Matched Jobs)
             HeroMetricCard(
-              totalJobs: _matchedJobs.length,
-              matchedCount: _matchedJobs.length,
-              title: '${_matchedJobs.length} Eligible Vacancies',
-              subtitle: 'Strictly matching your ${_selectedQualifications.length} qualifications • Tap to adjust',
+              totalJobs: currentList.length,
+              matchedCount: currentList.length,
+              title: isUpcoming
+                  ? '${currentList.length} Upcoming Vacancies'
+                  : '${currentList.length} Active Eligible Vacancies',
+              subtitle: isUpcoming
+                  ? 'Announced / Starting soon for your ${_selectedQualifications.length} qualifications'
+                  : 'Applications currently open for your ${_selectedQualifications.length} qualifications',
               actionIcon: Icons.tune_rounded,
               onTap: _openQualificationPicker,
             ),
 
-            // 2. Section Header: Recruitment Sectors for Candidate
+            // 2. Active vs Upcoming Subsection Switcher
+            _buildStatusToggle(
+              selectedIndex: _forYouStatusFilter,
+              activeCount: _forYouActiveJobs.length,
+              upcomingCount: _forYouUpcomingJobs.length,
+              palette: palette,
+              onSelect: (idx) {
+                setState(() => _forYouStatusFilter = idx);
+              },
+            ),
+
+            // 3. Section Header: Recruitment Sectors for Candidate
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 10),
+              padding: const EdgeInsets.fromLTRB(20, 6, 20, 8),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -690,7 +860,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Your Eligible Sector Hubs',
+                        isUpcoming ? 'Upcoming Sectors' : 'Your Eligible Sector Hubs',
                         style: TextStyle(
                           fontSize: 14.5,
                           fontWeight: FontWeight.w800,
@@ -700,7 +870,9 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Showing only vacancies you qualify for',
+                        isUpcoming
+                            ? 'Announced positions opening soon'
+                            : 'Showing vacancies open for application now',
                         style: TextStyle(
                           fontSize: 11,
                           color: palette.textSecondary,
@@ -721,17 +893,18 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
               ),
             ),
 
-            // 3. Sector Accordion Cards (Pre-computed sector caches for instant rendering)
+            // 4. Sector Accordion Cards (Pre-computed sector caches for instant rendering)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Column(
                 children: _sectors.map((sec) {
-                  final sectorJobs = _forYouSectorJobs[sec.id] ?? [];
+                  final sectorJobs = sectorMap[sec.id] ?? [];
                   return _buildSectorAccordionCard(
                     sector: sec,
                     sectorJobs: sectorJobs,
                     palette: palette,
                     isForYouMode: true,
+                    isUpcomingMode: isUpcoming,
                     isExpanded: _expandedSectorIdForYou == sec.id,
                     onToggle: () {
                       setState(() {
@@ -754,6 +927,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     required List<JobPost> sectorJobs,
     required AppPalette palette,
     required bool isForYouMode,
+    required bool isUpcomingMode,
     required bool isExpanded,
     required VoidCallback onToggle,
   }) {
@@ -839,8 +1013,8 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                       ),
                       child: Text(
                         isForYouMode
-                            ? '${sectorJobs.length} Eligible'
-                            : '${sectorJobs.length} Openings',
+                            ? (isUpcomingMode ? '${sectorJobs.length} Upcoming' : '${sectorJobs.length} Active')
+                            : (isUpcomingMode ? '${sectorJobs.length} Upcoming' : '${sectorJobs.length} Active'),
                         style: TextStyle(
                           fontSize: 10.5,
                           fontWeight: FontWeight.w700,
@@ -864,7 +1038,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
               ),
             ),
 
-            // Collapsible Accordion Subsection Body (Generous, de-shrinked layout)
+            // Collapsible Accordion Subsection Body
             AnimatedCrossFade(
               duration: const Duration(milliseconds: 240),
               firstCurve: Curves.easeOutCubic,
@@ -884,12 +1058,14 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                           children: [
                             Text(
                               isForYouMode
-                                  ? 'No vacancies currently match your qualification in this sector.'
+                                  ? (isUpcomingMode
+                                      ? 'No upcoming vacancies announced yet in this sector.'
+                                      : 'No active vacancies currently open in this sector.')
                                   : 'No vacancies found in this sector.',
                               textAlign: TextAlign.center,
                               style: TextStyle(fontSize: 12, color: palette.textSecondary),
                             ),
-                            if (isForYouMode) ...[
+                            if (isForYouMode && !isUpcomingMode) ...[
                               const SizedBox(height: 8),
                               TextButton.icon(
                                 onPressed: _openQualificationPicker,
@@ -926,6 +1102,10 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
 
   // --- TAB 1: EXPLORE DIRECTORY (Total Vacancies with Sector Subsections + Flat List Toggle) ---
   Widget _buildExploreDirectoryView(AppPalette palette, double topInset, double bottomInset) {
+    final isUpcoming = _exploreStatusFilter == 1;
+    final currentList = isUpcoming ? _exploreUpcomingJobs : _exploreActiveJobs;
+    final sectorMap = isUpcoming ? _exploreSectorUpcomingJobs : _exploreSectorActiveJobs;
+
     return RefreshIndicator(
       onRefresh: _handlePullRefresh,
       color: palette.accentPrimary,
@@ -992,11 +1172,22 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                     });
                   },
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 4),
+
+                // Active vs Upcoming Status Switcher in Explore
+                _buildStatusToggle(
+                  selectedIndex: _exploreStatusFilter,
+                  activeCount: _exploreActiveJobs.length,
+                  upcomingCount: _exploreUpcomingJobs.length,
+                  palette: palette,
+                  onSelect: (idx) {
+                    setState(() => _exploreStatusFilter = idx);
+                  },
+                ),
 
                 // Header with Total Vacancy Count and View Mode Toggle (By Sector vs Flat List)
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 10),
+                  padding: const EdgeInsets.fromLTRB(20, 2, 20, 10),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -1004,7 +1195,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'All Vacancies Directory',
+                            isUpcoming ? 'Upcoming Directory' : 'Active Vacancies Directory',
                             style: TextStyle(
                               fontSize: 14.5,
                               fontWeight: FontWeight.w800,
@@ -1014,7 +1205,9 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            'Total ${_filteredExploreJobs.length} postings across all qualifications',
+                            isUpcoming
+                                ? 'Total ${currentList.length} postings opening soon'
+                                : 'Total ${currentList.length} postings currently active',
                             style: TextStyle(
                               fontSize: 11,
                               color: palette.textSecondary,
@@ -1072,12 +1265,13 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
                     final sec = _sectors[index];
-                    final sectorJobs = _exploreSectorJobs[sec.id] ?? [];
+                    final sectorJobs = sectorMap[sec.id] ?? [];
                     return _buildSectorAccordionCard(
                       sector: sec,
                       sectorJobs: sectorJobs,
                       palette: palette,
                       isForYouMode: false,
+                      isUpcomingMode: isUpcoming,
                       isExpanded: _expandedSectorIdExplore == sec.id,
                       onToggle: () {
                         setState(() {
@@ -1092,11 +1286,11 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
             )
           else
             // High-Performance Flat List View (Zero tickers during scroll, RepaintBoundaries active)
-            if (_filteredExploreJobs.isEmpty)
+            if (currentList.isEmpty)
               SliverFillRemaining(
                 hasScrollBody: false,
                 child: _buildEmptyState(
-                  'No vacancies found',
+                  isUpcoming ? 'No upcoming vacancies found' : 'No active vacancies found',
                   'Try adjusting your search query or portal filters.',
                   palette,
                 ),
@@ -1107,7 +1301,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                 sliver: SliverList(
                   delegate: SliverChildBuilderDelegate(
                     (context, index) {
-                      final job = _filteredExploreJobs[index];
+                      final job = currentList[index];
                       final isSaved = _savedJobIds.contains(job.id);
                       return JobCard(
                         job: job,
@@ -1115,7 +1309,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                         onToggleSave: () => _toggleSaveJob(job.id),
                       );
                     },
-                    childCount: _filteredExploreJobs.length,
+                    childCount: currentList.length,
                     addAutomaticKeepAlives: true,
                     addRepaintBoundaries: true,
                   ),

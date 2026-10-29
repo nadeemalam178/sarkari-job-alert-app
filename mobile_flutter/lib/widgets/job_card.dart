@@ -187,30 +187,65 @@ class JobCard extends StatelessWidget {
                     ),
                   ],
                   const Spacer(),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (_isUrgent) ...[
-                        const PulsingBadgeDot(size: 7, color: Color(0xFFEF4444)),
-                        const SizedBox(width: 5),
-                      ] else ...[
-                        const Icon(
-                          Icons.event_outlined,
-                          size: 13,
-                          color: Color(0xFFEF4444),
-                        ),
-                        const SizedBox(width: 3),
-                      ],
-                      Text(
-                        job.lastDate,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFFEF4444),
+                  if (job.isUpcoming) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7.5, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF59E0B).withValues(alpha: palette.isDark ? 0.22 : 0.12),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: const Color(0xFFF59E0B).withValues(alpha: 0.6),
+                          width: 0.8,
                         ),
                       ),
-                    ],
-                  ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.schedule_rounded,
+                            size: 11.5,
+                            color: Color(0xFFF59E0B),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            job.startDate.isNotEmpty && job.startDate != 'Active Now'
+                                ? 'Starts: ${job.startDate}'
+                                : 'Upcoming',
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w700,
+                              color: palette.isDark ? const Color(0xFFFBBF24) : const Color(0xFFD97706),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ] else ...[
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (_isUrgent) ...[
+                          const PulsingBadgeDot(size: 7, color: Color(0xFFEF4444)),
+                          const SizedBox(width: 5),
+                        ] else ...[
+                          const Icon(
+                            Icons.event_outlined,
+                            size: 13,
+                            color: Color(0xFFEF4444),
+                          ),
+                          const SizedBox(width: 3),
+                        ],
+                        Text(
+                          job.lastDate,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFFEF4444),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
               const SizedBox(height: 8),

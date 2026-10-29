@@ -198,18 +198,48 @@ def parse_sarkari_cm_detail(job_url, pre_title):
 
         # 1. Start date & Last date
         start_date = ""
-        sm = re.search(r"Apply\s*Online\s*Start\s*Date\s*:\s*\n*([^\n\r|]{5,40})", page_text, re.I)
-        if not sm:
-            sm = re.search(r"Application\s*Begin\s*:\s*\n*([^\n\r|]{5,40})", page_text, re.I)
-        if sm:
-            start_date = sm.group(1).strip()
+        start_patterns = [
+            r"Application\s*(?:Begin|Start)\s*:\s*\n*([^\n\r|]{5,40})",
+            r"Apply\s*Online\s*Start\s*Date\s*:\s*\n*([^\n\r|]{5,40})",
+            r"start\s*date\s*is\s*\n*([^\n\r|]{5,40})",
+            r"Online\s*Application\s*Starts?\s*:\s*\n*([^\n\r|]{5,40})",
+            r"Opening\s*Date\s*:\s*\n*([^\n\r|]{5,40})",
+            r"Link\s*Activate\s*(?:on|from)?\s*:\s*\n*([^\n\r|]{5,40})",
+            r"Registration\s*Start\s*Date\s*:\s*\n*([^\n\r|]{5,40})",
+            r"Starting\s*Date\s*:\s*\n*([^\n\r|]{5,40})",
+        ]
+        for sp in start_patterns:
+            sm = re.search(sp, page_text, re.I)
+            if sm:
+                raw_sd = sm.group(1).strip()
+                raw_sd = re.sub(r"\s*\.\s*Minimum.*", "", raw_sd, flags=re.I)
+                raw_sd = re.sub(r"\s*upto.*", "", raw_sd, flags=re.I)
+                raw_sd = re.sub(r"\s*\(.*?\)", "", raw_sd).strip()
+                start_date = raw_sd[:35]
+                break
+
+        if not start_date and any(w in page_text.lower() for w in ["link activate soon", "link will be active soon", "notify soon"]):
+            start_date = "Link Activate Soon"
+        if not start_date and "2027" in pre_title:
+            start_date = "Link Activate Soon"
 
         last_date = ""
-        lm = re.search(r"Apply\s*Online\s*Last\s*Date\s*:\s*\n*([^\n\r|]{5,40})", page_text, re.I)
-        if not lm:
-            lm = re.search(r"Last\s*Date\s*(?:for\s*Apply\s*Online)?\s*:\s*\n*([^\n\r|]{5,40})", page_text, re.I)
-        if lm:
-            last_date = lm.group(1).strip()
+        last_patterns = [
+            r"Apply\s*Online\s*Last\s*Date\s*:\s*\n*([^\n\r|]{5,40})",
+            r"Last\s*Date\s*(?:for\s*Apply\s*Online)?\s*:\s*\n*([^\n\r|]{5,40})",
+            r"Closing\s*Date\s*:\s*\n*([^\n\r|]{5,40})",
+            r"Registration\s*Last\s*Date\s*:\s*\n*([^\n\r|]{5,40})",
+            r"Last\s*Date\s*to\s*Apply\s*:\s*\n*([^\n\r|]{5,40})",
+        ]
+        for lp in last_patterns:
+            lm = re.search(lp, page_text, re.I)
+            if lm:
+                raw_ld = lm.group(1).strip()
+                raw_ld = re.sub(r"\s*\.\s*Minimum.*", "", raw_ld, flags=re.I)
+                raw_ld = re.sub(r"\s*upto.*", "", raw_ld, flags=re.I)
+                raw_ld = re.sub(r"\s*\(.*?\)", "", raw_ld).strip()
+                last_date = raw_ld[:35]
+                break
 
         # 2. Total Posts
         total_posts = ""

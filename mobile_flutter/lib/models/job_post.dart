@@ -91,6 +91,91 @@ class JobPost {
     );
   }
 
+  bool get isUpcoming {
+    final lowerStart = startDate.toLowerCase().trim();
+    final lowerTitle = title.toLowerCase();
+
+    // 1. Explicit text cues indicating future / upcoming status
+    if (lowerStart.contains('link activate soon') ||
+        lowerStart.contains('notify soon') ||
+        lowerStart.contains('coming soon') ||
+        lowerStart.contains('activate soon') ||
+        lowerStart.contains('to be notified') ||
+        lowerTitle.contains('form 2027') ||
+        lowerStart.contains('2027')) {
+      return true;
+    }
+
+    // 2. Date parsing (check if start date is strictly in the future)
+    final parsed = _parseStartDateTime(startDate);
+    if (parsed != null) {
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      if (parsed.isAfter(today)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  bool get isActive => !isUpcoming;
+
+  static DateTime? _parseStartDateTime(String raw) {
+    if (raw.isEmpty) return null;
+    final s = raw.toLowerCase().trim();
+
+    // Match DD/MM/YYYY or DD-MM-YYYY
+    final numMatch = RegExp(r'(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})').firstMatch(s);
+    if (numMatch != null) {
+      final d = int.tryParse(numMatch.group(1)!) ?? 1;
+      final m = int.tryParse(numMatch.group(2)!) ?? 1;
+      var y = int.tryParse(numMatch.group(3)!) ?? 2026;
+      if (y < 100) y += 2000;
+      try {
+        return DateTime(y, m, d);
+      } catch (_) {
+        return null;
+      }
+    }
+
+    // Match DD Month YYYY (e.g. 05 November 2026)
+    final wordMatch = RegExp(r'(\d{1,2})(?:st|nd|rd|th)?\s+([a-z]+)\s+(\d{4})').firstMatch(s);
+    if (wordMatch != null) {
+      final d = int.tryParse(wordMatch.group(1)!) ?? 1;
+      final mStr = wordMatch.group(2)!;
+      final y = int.tryParse(wordMatch.group(3)!) ?? 2026;
+      final m = _monthNameToNumber(mStr);
+      if (m != null) {
+        try {
+          return DateTime(y, m, d);
+        } catch (_) {
+          return null;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  static int? _monthNameToNumber(String name) {
+    const months = {
+      'jan': 1, 'january': 1,
+      'feb': 2, 'february': 2,
+      'mar': 3, 'march': 3,
+      'apr': 4, 'april': 4,
+      'may': 5,
+      'jun': 6, 'june': 6,
+      'jul': 7, 'july': 7,
+      'aug': 8, 'august': 8,
+      'sep': 9, 'september': 9,
+      'oct': 10, 'october': 10,
+      'nov': 11, 'november': 11,
+      'dec': 12, 'december': 12,
+    };
+    return months[name];
+  }
+
   Map<String, dynamic> toJson() => {
         'id': id,
         'source': source,
