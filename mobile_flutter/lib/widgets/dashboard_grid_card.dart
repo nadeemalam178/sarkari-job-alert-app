@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/job_post.dart';
 import '../theme/app_theme.dart';
 import 'job_details_sheet.dart';
+import 'motion_spells.dart';
 
 class DashboardGridCard extends StatelessWidget {
   final JobPost job;
@@ -82,9 +83,9 @@ class DashboardGridCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
 
-    return InkWell(
+    return TactilePress(
       onTap: () => _openDetails(context),
-      borderRadius: BorderRadius.circular(18),
+      scaleFactor: 0.96,
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: palette.glassDecoration(

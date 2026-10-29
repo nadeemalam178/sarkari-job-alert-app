@@ -16,6 +16,7 @@ node_modules/
 .expo/
 **/.expo/
 release-apk/
+releases/
 *.apk
 
 # Flutter & Android

@@ -1,6 +1,6 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 
 import '../models/job_post.dart';
 import '../models/qualification.dart';
@@ -12,6 +12,7 @@ import '../widgets/custom_bottom_dock.dart';
 import '../widgets/dashboard_grid_card.dart';
 import '../widgets/hero_metric_card.dart';
 import '../widgets/job_card.dart';
+import '../widgets/motion_spells.dart';
 import '../widgets/portal_filter_bar.dart';
 import 'auth_screen.dart';
 import 'profile_screen.dart';
@@ -62,7 +63,6 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
 
   /// Instant 0ms cache load, followed by silent background sync
   Future<void> _initialFastLoad() async {
-    // 1. Read local storage first (instant synchronous feel)
     final cachedJobs = await StorageService.getCachedJobs();
     final quals = await StorageService.getSelectedQualifications();
     final saved = await StorageService.getSavedJobIds();
@@ -86,7 +86,6 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
       });
     }
 
-    // 2. Background silent fetch & sync (no full-screen blocking spinner)
     _silentBackgroundSync();
   }
 
@@ -112,7 +111,6 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     setState(() => _isPullRefreshing = true);
 
     try {
-      // Trigger background scrape if backend is connected
       await ApiService.triggerScrape();
       final freshJobs = await ApiService.fetchJobs(
         source: _selectedSource,
@@ -174,7 +172,6 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
         ),
       );
     } else {
-      // Refresh candidate profile name
       final profile = await StorageService.getCandidateProfile();
       if (mounted) {
         setState(() {
@@ -193,17 +190,15 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     }).toList();
   }
 
-  // --- Explore Tab: Universal Large Pool of ALL Jobs across 3 portals ---
+  // --- Explore Tab: Universal Large Pool of ALL Jobs across all portals ---
   // Deduplicated and NOT choice-specific!
   List<JobPost> _getFilteredExploreJobs() {
     var list = _allJobs;
 
-    // Filter by portal chip if not 'All'
     if (_selectedSource != 'All') {
       list = list.where((j) => j.source.toLowerCase() == _selectedSource.toLowerCase()).toList();
     }
 
-    // Instant in-memory search
     if (_searchQuery.trim().isNotEmpty) {
       final q = _searchQuery.trim().toLowerCase();
       list = list.where((j) =>
@@ -223,106 +218,124 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
+    final topPadding = MediaQuery.of(context).padding.top + 98.0 + (_bannerDismissed ? 0.0 : 42.0);
+    const bottomPadding = 92.0;
 
     return Scaffold(
       backgroundColor: palette.background,
-      body: NotificationListener<UserScrollNotification>(
+      body: NotificationListener<ScrollNotification>(
         onNotification: (notification) {
-          // When scrolling down: collapse header and footer to give full screen to middle UI
-          if (notification.direction == ScrollDirection.reverse) {
-            if (_isBarsVisible) {
-              setState(() => _isBarsVisible = false);
+          if (notification is ScrollUpdateNotification) {
+            final delta = notification.scrollDelta ?? 0;
+            // Scrolling down -> hide bars smoothly to give 100% space to middle UI
+            if (delta > 8.0) {
+              if (_isBarsVisible) setState(() => _isBarsVisible = false);
+            }
+            // Scrolling up -> reveal bars smoothly
+            else if (delta < -8.0) {
+              if (!_isBarsVisible) setState(() => _isBarsVisible = true);
             }
           }
-          // When scrolling up: smoothly reveal header and footer
-          else if (notification.direction == ScrollDirection.forward) {
-            if (!_isBarsVisible) {
-              setState(() => _isBarsVisible = true);
-            }
+          // When user scrolls to top of view, guarantee bars are visible
+          if (notification.metrics.pixels <= 10.0) {
+            if (!_isBarsVisible) setState(() => _isBarsVisible = true);
           }
           return false;
         },
-        child: SafeArea(
-          bottom: false,
-          child: Column(
-            children: [
-              // 1. Collapsible Header (Shifts UP and gone on scroll)
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 260),
-                curve: Curves.easeInOutCubic,
-                height: _isBarsVisible ? null : 0.0,
-                clipBehavior: Clip.hardEdge,
-                decoration: const BoxDecoration(),
-                child: AnimatedSlide(
-                  duration: const Duration(milliseconds: 260),
-                  curve: Curves.easeInOutCubic,
-                  offset: _isBarsVisible ? Offset.zero : const Offset(0, -1),
-                  child: AnimatedOpacity(
-                    duration: const Duration(milliseconds: 200),
-                    opacity: _isBarsVisible ? 1.0 : 0.0,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
+        child: Stack(
+          children: [
+            // 1. Content Views Layer (Constant fixed viewport, zero layout thrashing)
+            Positioned.fill(
+              child: _isLoading && _allJobs.isEmpty
+                  ? Center(child: CircularProgressIndicator(color: palette.accentPrimary))
+                  : IndexedStack(
+                      index: _currentTab,
                       children: [
-                        _buildTopHeader(palette),
-                        if (!_bannerDismissed) _buildNotificationBanner(palette),
+                        _buildDashboardView(palette, topPadding, bottomPadding),
+                        _buildExploreDirectoryView(palette, topPadding, bottomPadding),
+                        _buildSavedView(palette, topPadding, bottomPadding),
+                        _buildAlertsView(palette, topPadding, bottomPadding),
                       ],
+                    ),
+            ),
+
+            // 2. Floating Frosted Top Header (AnimatedSlide UP on scroll)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: AnimatedSlide(
+                duration: const Duration(milliseconds: 280),
+                curve: Curves.easeOutCubic,
+                offset: _isBarsVisible ? Offset.zero : const Offset(0, -1.2),
+                child: IgnorePointer(
+                  ignoring: !_isBarsVisible,
+                  child: ClipRect(
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: palette.background.withValues(alpha: 0.85),
+                          border: Border(
+                            bottom: BorderSide(
+                              color: palette.cardBorder.withValues(alpha: 0.5),
+                              width: 0.8,
+                            ),
+                          ),
+                        ),
+                        child: SafeArea(
+                          bottom: false,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _buildTopHeader(palette),
+                              if (!_bannerDismissed) _buildNotificationBanner(palette),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
               ),
+            ),
 
-              // 2. Middle Content Views (Expands to fill 100% of space)
-              Expanded(
-                child: _isLoading && _allJobs.isEmpty
-                    ? Center(child: CircularProgressIndicator(color: palette.accentPrimary))
-                    : IndexedStack(
-                        index: _currentTab,
-                        children: [
-                          _buildDashboardView(palette),
-                          _buildExploreDirectoryView(palette),
-                          _buildExploreListView(_getSavedJobs(), palette, isSavedTab: true),
-                          _buildAlertsView(palette),
-                        ],
-                      ),
-              ),
-
-              // 3. Collapsible Footer Bottom Dock (Shifts DOWN and gone on scroll)
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 260),
-                curve: Curves.easeInOutCubic,
-                height: _isBarsVisible ? 80.0 : 0.0,
-                clipBehavior: Clip.hardEdge,
-                decoration: const BoxDecoration(),
-                child: AnimatedSlide(
-                  duration: const Duration(milliseconds: 260),
-                  curve: Curves.easeInOutCubic,
-                  offset: _isBarsVisible ? Offset.zero : const Offset(0, 1),
-                  child: AnimatedOpacity(
-                    duration: const Duration(milliseconds: 200),
-                    opacity: _isBarsVisible ? 1.0 : 0.0,
+            // 3. Floating Bottom Dock (AnimatedSlide DOWN on scroll)
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: AnimatedSlide(
+                duration: const Duration(milliseconds: 280),
+                curve: Curves.easeOutCubic,
+                offset: _isBarsVisible ? Offset.zero : const Offset(0, 1.2),
+                child: IgnorePointer(
+                  ignoring: !_isBarsVisible,
+                  child: SafeArea(
+                    top: false,
                     child: CustomBottomDock(
                       currentIndex: _currentTab,
                       onTabSelected: (idx) {
                         setState(() {
                           _currentTab = idx;
-                          _isBarsVisible = true; // Always reveal bars on tab switch
+                          _isBarsVisible = true;
                         });
                       },
                     ),
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  // --- Header without left button as requested ---
+  // --- Top Header with Tactile Avatar and Status ---
   Widget _buildTopHeader(AppPalette palette) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 6),
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 6),
       child: Column(
         children: [
           Row(
@@ -373,10 +386,10 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                 ],
               ),
 
-              // Right: Profile Avatar
-              InkWell(
+              // Right: Profile Avatar with TactilePress
+              TactilePress(
                 onTap: _openProfile,
-                borderRadius: BorderRadius.circular(20),
+                scaleFactor: 0.92,
                 child: Container(
                   width: 36,
                   height: 36,
@@ -417,10 +430,10 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                 ),
               ),
 
-              // Active Qualification Pill
-              InkWell(
+              // Active Qualification Pill with TactilePress
+              TactilePress(
                 onTap: _openProfile,
-                borderRadius: BorderRadius.circular(16),
+                scaleFactor: 0.94,
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
@@ -462,7 +475,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
   // Dismissible Top Notification Banner
   Widget _buildNotificationBanner(AppPalette palette) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(20, 4, 20, 6),
+      margin: const EdgeInsets.fromLTRB(20, 2, 20, 6),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: palette.surfaceGlassHigh,
@@ -500,7 +513,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
   }
 
   // --- TAB 0: HOME COMMAND CENTER (Pull-to-refresh enabled) ---
-  Widget _buildDashboardView(AppPalette palette) {
+  Widget _buildDashboardView(AppPalette palette, double topInset, double bottomInset) {
     final matchedJobs = _getMatchedJobs();
     final topJobs = matchedJobs.isNotEmpty ? matchedJobs : _allJobs;
 
@@ -509,11 +522,10 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
       color: palette.accentPrimary,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.only(bottom: 24),
+        padding: EdgeInsets.fromLTRB(0, topInset + 6, 0, bottomInset + 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Hero Metric Card
             HeroMetricCard(
               totalJobs: _allJobs.length,
               matchedCount: matchedJobs.length,
@@ -577,7 +589,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
               ),
             ),
 
-            // 2x2 Grid of Dashboard Bento Tiles
+            // 2x2 Grid of Dashboard Bento Tiles with Staggered Entrance
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: GridView.builder(
@@ -593,10 +605,13 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                 itemBuilder: (context, index) {
                   final job = topJobs[index];
                   final isSaved = _savedJobIds.contains(job.id);
-                  return DashboardGridCard(
-                    job: job,
-                    isSaved: isSaved,
-                    onToggleSave: () => _toggleSaveJob(job.id),
+                  return StaggeredFadeSlide(
+                    index: index,
+                    child: DashboardGridCard(
+                      job: job,
+                      isSaved: isSaved,
+                      onToggleSave: () => _toggleSaveJob(job.id),
+                    ),
                   );
                 },
               ),
@@ -610,15 +625,16 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
   Widget _buildSectorChip(String label, String query, AppPalette palette) {
     return Padding(
       padding: const EdgeInsets.only(right: 8),
-      child: InkWell(
+      child: TactilePress(
+        scaleFactor: 0.94,
         onTap: () {
           setState(() {
             _searchController.text = query;
             _searchQuery = query;
-            _currentTab = 1; // Switch to Explore view
+            _currentTab = 1;
+            _isBarsVisible = true;
           });
         },
-        borderRadius: BorderRadius.circular(14),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
           decoration: BoxDecoration(
@@ -639,116 +655,171 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     );
   }
 
-  // --- TAB 1: EXPLORE DIRECTORY (Full Pool Across 3 Portals, Pull-to-refresh) ---
-  Widget _buildExploreDirectoryView(AppPalette palette) {
+  // --- TAB 1: EXPLORE DIRECTORY (Full Unified Pool Across All Portals) ---
+  Widget _buildExploreDirectoryView(AppPalette palette, double topInset, double bottomInset) {
     final exploreJobs = _getFilteredExploreJobs();
 
-    return Column(
-      children: [
-        // Fast instant search bar
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 6),
-          child: TextField(
-            controller: _searchController,
-            onChanged: (val) {
-              // Instant in-memory filter with zero network delay!
-              setState(() => _searchQuery = val);
-            },
-            style: TextStyle(color: palette.textPrimary, fontSize: 13),
-            decoration: InputDecoration(
-              hintText: 'Search RRB NTPC, B.Sc Science, UPSC, SSC...',
-              hintStyle: TextStyle(fontSize: 12.5, color: palette.textSecondary),
-              prefixIcon: Icon(Icons.search, size: 18, color: palette.textSecondary),
-              suffixIcon: _searchController.text.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear, size: 16),
-                      onPressed: () {
-                        _searchController.clear();
-                        setState(() => _searchQuery = '');
-                      },
-                    )
-                  : null,
-              isDense: true,
-              filled: true,
-              fillColor: palette.isDark ? const Color(0xFF17151C) : Colors.white,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(color: palette.cardBorder),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(color: palette.cardBorder),
-              ),
+    return RefreshIndicator(
+      onRefresh: _handlePullRefresh,
+      color: palette.accentPrimary,
+      child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          SliverToBoxAdapter(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(height: topInset + 4),
+                // Fast instant search bar
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 6),
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: (val) {
+                      setState(() => _searchQuery = val);
+                    },
+                    style: TextStyle(color: palette.textPrimary, fontSize: 13),
+                    decoration: InputDecoration(
+                      hintText: 'Search RRB NTPC, B.Sc Science, UPSC, SSC...',
+                      hintStyle: TextStyle(fontSize: 12.5, color: palette.textSecondary),
+                      prefixIcon: Icon(Icons.search, size: 18, color: palette.textSecondary),
+                      suffixIcon: _searchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, size: 16),
+                              onPressed: () {
+                                _searchController.clear();
+                                setState(() => _searchQuery = '');
+                              },
+                            )
+                          : null,
+                      isDense: true,
+                      filled: true,
+                      fillColor: palette.isDark ? const Color(0xFF17151C) : Colors.white,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: palette.cardBorder),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: palette.cardBorder),
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Portal Filter Bar with all sources
+                PortalFilterBar(
+                  selectedSource: _selectedSource,
+                  onSourceSelected: (src) {
+                    setState(() => _selectedSource = src);
+                  },
+                ),
+                const SizedBox(height: 8),
+              ],
             ),
           ),
-        ),
-
-        // Portal filter bar: All, SarkariResult ★, FreeJobAlert, RojgarResult
-        PortalFilterBar(
-          selectedSource: _selectedSource,
-          onSourceSelected: (src) {
-            setState(() => _selectedSource = src);
-          },
-        ),
-        const SizedBox(height: 4),
-
-        // Recruitment Feed with Pull-To-Refresh
-        Expanded(
-          child: RefreshIndicator(
-            onRefresh: _handlePullRefresh,
-            color: palette.accentPrimary,
-            child: _buildJobList(
-              exploreJobs,
-              palette,
-              emptyTitle: 'No vacancies found',
-              emptySubtitle: 'Try adjusting your search query or portal filters.',
+          if (exploreJobs.isEmpty)
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: _buildEmptyState(
+                'No vacancies found',
+                'Try adjusting your search query or portal filters.',
+                palette,
+              ),
+            )
+          else
+            SliverPadding(
+              padding: EdgeInsets.only(bottom: bottomInset + 20),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    final job = exploreJobs[index];
+                    final isSaved = _savedJobIds.contains(job.id);
+                    return StaggeredFadeSlide(
+                      index: index,
+                      child: JobCard(
+                        job: job,
+                        isSaved: isSaved,
+                        onToggleSave: () => _toggleSaveJob(job.id),
+                      ),
+                    );
+                  },
+                  childCount: exploreJobs.length,
+                ),
+              ),
             ),
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
   // --- TAB 2: SAVED BOOKMARKS ---
-  Widget _buildExploreListView(List<JobPost> list, AppPalette palette, {bool isSavedTab = false}) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 6, 20, 8),
-          child: Row(
-            children: [
-              const Icon(Icons.bookmark_rounded, color: Color(0xFFFBBF24), size: 18),
-              const SizedBox(width: 8),
-              Text(
-                'Bookmarked Vacancies (${list.length})',
-                style: TextStyle(
-                  fontSize: 14.5,
-                  fontWeight: FontWeight.w700,
-                  color: palette.textPrimary,
+  Widget _buildSavedView(AppPalette palette, double topInset, double bottomInset) {
+    final savedJobs = _getSavedJobs();
+
+    return CustomScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      slivers: [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(20, topInset + 12, 20, 8),
+            child: Row(
+              children: [
+                const Icon(Icons.bookmark_rounded, color: Color(0xFFFBBF24), size: 18),
+                const SizedBox(width: 8),
+                Text(
+                  'Bookmarked Vacancies (${savedJobs.length})',
+                  style: TextStyle(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w700,
+                    color: palette.textPrimary,
+                  ),
                 ),
+              ],
+            ),
+          ),
+        ),
+        if (savedJobs.isEmpty)
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: _buildEmptyState(
+              'No Bookmarked Vacancies',
+              'Tap Bookmark on any job notice to save it for quick reference.',
+              palette,
+            ),
+          )
+        else
+          SliverPadding(
+            padding: EdgeInsets.only(bottom: bottomInset + 20),
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  final job = savedJobs[index];
+                  return StaggeredFadeSlide(
+                    index: index,
+                    child: JobCard(
+                      job: job,
+                      isSaved: true,
+                      onToggleSave: () => _toggleSaveJob(job.id),
+                    ),
+                  );
+                },
+                childCount: savedJobs.length,
               ),
-            ],
+            ),
           ),
-        ),
-        Expanded(
-          child: _buildJobList(
-            list,
-            palette,
-            emptyTitle: 'No Bookmarked Vacancies',
-            emptySubtitle: 'Tap Bookmark on any job notice to save it for quick reference.',
-          ),
-        ),
       ],
     );
   }
 
   // --- TAB 3: ALERTS TAB ---
-  Widget _buildAlertsView(AppPalette palette) {
+  Widget _buildAlertsView(AppPalette palette, double topInset, double bottomInset) {
     final alertJobs = _getMatchedJobs().take(8).toList();
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: EdgeInsets.fromLTRB(20, topInset + 12, 20, bottomInset + 20),
       children: [
         Text(
           'Recruitment Alerts',
@@ -766,70 +837,53 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
         ),
         const SizedBox(height: 14),
 
-        ...alertJobs.map((j) {
+        ...alertJobs.asMap().entries.map((entry) {
+          final index = entry.key;
+          final j = entry.value;
           final isSaved = _savedJobIds.contains(j.id);
-          return JobCard(
-            job: j,
-            isSaved: isSaved,
-            onToggleSave: () => _toggleSaveJob(j.id),
+          return StaggeredFadeSlide(
+            index: index,
+            child: JobCard(
+              job: j,
+              isSaved: isSaved,
+              onToggleSave: () => _toggleSaveJob(j.id),
+            ),
           );
         }),
       ],
     );
   }
 
-  Widget _buildJobList(
-    List<JobPost> list,
-    AppPalette palette, {
-    required String emptyTitle,
-    required String emptySubtitle,
-  }) {
-    if (list.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.search_off_rounded, size: 48, color: palette.textSecondary),
-              const SizedBox(height: 12),
-              Text(
-                emptyTitle,
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: palette.textPrimary,
-                ),
+  Widget _buildEmptyState(String title, String subtitle, AppPalette palette) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.search_off_rounded, size: 48, color: palette.textSecondary),
+            const SizedBox(height: 12),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: palette.textPrimary,
               ),
-              const SizedBox(height: 4),
-              Text(
-                emptySubtitle,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: palette.textSecondary,
-                  height: 1.4,
-                ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12,
+                color: palette.textSecondary,
+                height: 1.4,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-      );
-    }
-
-    return ListView.builder(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.only(bottom: 16),
-      itemCount: list.length,
-      itemBuilder: (context, index) {
-        final job = list[index];
-        final isSaved = _savedJobIds.contains(job.id);
-        return JobCard(
-          job: job,
-          isSaved: isSaved,
-          onToggleSave: () => _toggleSaveJob(job.id),
-        );
-      },
+      ),
     );
   }
 }

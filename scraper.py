@@ -583,6 +583,133 @@ def parse_rojgar_detail(job_url, pre_title, pre_quals):
         print(f"[Scraper] Rojgar detail failed {job_url}: {e}")
         return None
 
+
+# --- Scraper 4: GovtJobsAlert (Central & State Governments) ---
+def scrape_govtjobsalert(limit=30):
+    url = "https://govtjobsalert.in/"
+    jobs = []
+    seen = set()
+    try:
+        r = requests.get(url, headers=HEADERS, timeout=12)
+        if r.status_code != 200:
+            return []
+        soup = BeautifulSoup(r.text, "html.parser")
+        for a in soup.find_all("a", href=True):
+            href = a["href"].strip()
+            raw_txt = re.sub(r"\s+", " ", a.get_text(" ", strip=True)).strip()
+            if not href.startswith("http") or "govtjobsalert.in" not in href or href in seen:
+                continue
+            if any(x in href for x in ["/privacy", "/disclaimer", "/contact", "/about", "/category/", "/tag/", "/author/", "/page/"]):
+                continue
+            if len(raw_txt) > 20 and any(w in raw_txt.lower() for w in ["recruitment", "posts", "last date", "apply", "officer", "engineer"]):
+                if not is_non_job(raw_txt):
+                    seen.add(href)
+                    pm = re.search(r"([\d,]+)\s*Posts", raw_txt, re.I)
+                    posts = f"{pm.group(1)} Posts" if pm else "Various Posts"
+                    ld = re.search(r"Last\s*date\s*([^\s→]{3,20})", raw_txt, re.I)
+                    last_date = ld.group(1) if ld else "Check Notification"
+                    title = re.sub(r"[\d,]+\s*Posts.*", "", raw_txt).strip()
+                    title = re.sub(r"Last\s*date.*", "", title).strip().rstrip("→").strip()
+                    quals = extract_qualifications_from_text(raw_txt)
+                    jobs.append({
+                        "title": title or raw_txt[:80],
+                        "url": href,
+                        "total_posts": posts,
+                        "last_date": last_date,
+                        "source": "GovtJobsAlert",
+                        "qualifications_found": quals,
+                        "eligibility_snippet": f"Official notification on GovtJobsAlert for {title}. Vacancies: {posts}.",
+                        "org": title.split(" ")[0] if title else "Govt of India",
+                        "full_text": f"{raw_txt} {title} {posts}"
+                    })
+                    if len(jobs) >= limit:
+                        break
+    except Exception as e:
+        print("[Scraper] GovtJobsAlert error:", e)
+    return jobs
+
+# --- Scraper 5: SarkariExam (Top Online Forms) ---
+def scrape_sarkariexam(limit=30):
+    url = "https://www.sarkariexam.com/"
+    jobs = []
+    seen = set()
+    try:
+        r = requests.get(url, headers=HEADERS, timeout=12)
+        if r.status_code != 200:
+            return []
+        soup = BeautifulSoup(r.text, "html.parser")
+        for a in soup.find_all("a", href=True):
+            href = a["href"].strip()
+            raw_txt = re.sub(r"\s+", " ", a.get_text(" ", strip=True)).strip()
+            if not href.startswith("http") or "sarkariexam.com" not in href or href in seen:
+                continue
+            if any(x in href for x in ["/privacy", "/disclaimer", "/contact", "/about", "/category/", "/tag/", "/author/", "/page/", "/document-verification"]):
+                continue
+            if len(raw_txt) > 20 and any(w in raw_txt.lower() for w in ["online form", "recruitment", "posts", "vacancy", "bharti"]):
+                if not is_non_job(raw_txt):
+                    seen.add(href)
+                    pm = re.search(r"\(([\d,]+)\s*Posts?\)", raw_txt, re.I)
+                    posts = f"{pm.group(1)} Posts" if pm else "Various Posts"
+                    quals = extract_qualifications_from_text(raw_txt)
+                    clean_title = re.sub(r"–\s*Apply\s*Here.*", "", raw_txt).strip()
+                    jobs.append({
+                        "title": clean_title,
+                        "url": href,
+                        "total_posts": posts,
+                        "last_date": "Check Notification",
+                        "source": "SarkariExam",
+                        "qualifications_found": quals,
+                        "eligibility_snippet": f"Recruitment notice on SarkariExam: {clean_title}",
+                        "org": clean_title.split(" ")[0],
+                        "full_text": f"{clean_title} {posts}"
+                    })
+                    if len(jobs) >= limit:
+                        break
+    except Exception as e:
+        print("[Scraper] SarkariExam error:", e)
+    return jobs
+
+# --- Scraper 6: IndGovtJobs (PSU & Central Vacancies) ---
+def scrape_indgovtjobs(limit=25):
+    url = "https://www.indgovtjobs.in/"
+    jobs = []
+    seen = set()
+    try:
+        r = requests.get(url, headers=HEADERS, timeout=12)
+        if r.status_code != 200:
+            return []
+        soup = BeautifulSoup(r.text, "html.parser")
+        for a in soup.find_all("a", href=True):
+            href = a["href"].strip()
+            raw_txt = re.sub(r"\s+", " ", a.get_text(" ", strip=True)).strip()
+            if not href.startswith("http") or "indgovtjobs.in/20" not in href or href in seen:
+                continue
+            if len(raw_txt) > 20 and any(w in raw_txt.lower() for w in ["recruitment", "vacancies", "posts", "apply online"]):
+                if not is_non_job(raw_txt):
+                    seen.add(href)
+                    pm = re.search(r"([\d,]+)\s*Posts?", raw_txt, re.I)
+                    posts = f"{pm.group(1)} Posts" if pm else "Various Posts"
+                    ld = re.search(r"Last\s*Date\s*([^\s|]{5,15})", raw_txt, re.I)
+                    last_date = ld.group(1) if ld else "Check Notification"
+                    clean_title = re.sub(r"\|\s*Last\s*Date.*", "", raw_txt).strip()
+                    quals = extract_qualifications_from_text(raw_txt)
+                    jobs.append({
+                        "title": clean_title,
+                        "url": href,
+                        "total_posts": posts,
+                        "last_date": last_date,
+                        "source": "IndGovtJobs",
+                        "qualifications_found": quals,
+                        "eligibility_snippet": f"Central / State Government recruitment on IndGovtJobs: {clean_title}",
+                        "org": clean_title.split(" ")[0],
+                        "full_text": f"{clean_title} {posts} {last_date}"
+                    })
+                    if len(jobs) >= limit:
+                        break
+    except Exception as e:
+        print("[Scraper] IndGovtJobs error:", e)
+    return jobs
+
 # --- Unified Deduplicated Scrape Cycle with Sarkari Result Priority ---
 def run_scrape_cycle(max_per_source=150):
     seen_urls = database.get_seen_urls()
@@ -757,6 +884,117 @@ def run_scrape_cycle(max_per_source=150):
         existing_keys.append({"key": item_key, "source": "RojgarResult", "id": 0})
         new_jobs_added += 1
         _notify_matching_users(job_record, details["full_text"], all_users)
+
+    # 4. QUATERNARY SOURCE: GovtJobsAlert (PSUs, Central, State Vacancies)
+    gja_jobs = scrape_govtjobsalert(limit=30)
+    for j in gja_jobs:
+        url = j["url"]
+        if url in seen_urls:
+            continue
+
+        item_key = normalize_job_key(j["title"], j.get("org", ""))
+        if any(are_titles_duplicate(item_key, ek["key"]) for ek in existing_keys):
+            continue
+
+        job_record = {
+            "source": "GovtJobsAlert",
+            "url": url,
+            "title": j["title"],
+            "org": j.get("org", "Govt of India"),
+            "last_date": j.get("last_date", "Check Notification"),
+            "start_date": "Active Now",
+            "total_posts": j.get("total_posts", "Various Posts"),
+            "apply_link": url,
+            "notification_link": url,
+            "official_website": "",
+            "age_limit": "As per notification rules",
+            "application_fee": "Check official notice",
+            "eligibility_snippet": j.get("eligibility_snippet", ""),
+            "qualifications_found": j.get("qualifications_found", []),
+            "matched_keywords": [],
+            "is_matched": len(j.get("qualifications_found", [])) > 0,
+            "scraped_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+            "notified": 0
+        }
+        database.save_job(job_record)
+        seen_urls.add(url)
+        existing_keys.append({"key": item_key, "source": "GovtJobsAlert", "id": 0})
+        new_jobs_added += 1
+        _notify_matching_users(job_record, j.get("full_text", ""), all_users)
+
+    # 5. QUINARY SOURCE: SarkariExam (Top Online Forms)
+    se_jobs = scrape_sarkariexam(limit=30)
+    for j in se_jobs:
+        url = j["url"]
+        if url in seen_urls:
+            continue
+
+        item_key = normalize_job_key(j["title"], j.get("org", ""))
+        if any(are_titles_duplicate(item_key, ek["key"]) for ek in existing_keys):
+            continue
+
+        job_record = {
+            "source": "SarkariExam",
+            "url": url,
+            "title": j["title"],
+            "org": j.get("org", "Government Organization"),
+            "last_date": j.get("last_date", "Check Notification"),
+            "start_date": "Active Now",
+            "total_posts": j.get("total_posts", "Various Posts"),
+            "apply_link": url,
+            "notification_link": url,
+            "official_website": "",
+            "age_limit": "As per notification rules",
+            "application_fee": "Check official notice",
+            "eligibility_snippet": j.get("eligibility_snippet", ""),
+            "qualifications_found": j.get("qualifications_found", []),
+            "matched_keywords": [],
+            "is_matched": len(j.get("qualifications_found", [])) > 0,
+            "scraped_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+            "notified": 0
+        }
+        database.save_job(job_record)
+        seen_urls.add(url)
+        existing_keys.append({"key": item_key, "source": "SarkariExam", "id": 0})
+        new_jobs_added += 1
+        _notify_matching_users(job_record, j.get("full_text", ""), all_users)
+
+    # 6. SENARY SOURCE: IndGovtJobs (PSU, Research & Central Vacancies)
+    igj_jobs = scrape_indgovtjobs(limit=25)
+    for j in igj_jobs:
+        url = j["url"]
+        if url in seen_urls:
+            continue
+
+        item_key = normalize_job_key(j["title"], j.get("org", ""))
+        if any(are_titles_duplicate(item_key, ek["key"]) for ek in existing_keys):
+            continue
+
+        job_record = {
+            "source": "IndGovtJobs",
+            "url": url,
+            "title": j["title"],
+            "org": j.get("org", "Government PSU"),
+            "last_date": j.get("last_date", "Check Notification"),
+            "start_date": "Active Now",
+            "total_posts": j.get("total_posts", "Various Posts"),
+            "apply_link": url,
+            "notification_link": url,
+            "official_website": "",
+            "age_limit": "As per notification rules",
+            "application_fee": "Check official notice",
+            "eligibility_snippet": j.get("eligibility_snippet", ""),
+            "qualifications_found": j.get("qualifications_found", []),
+            "matched_keywords": [],
+            "is_matched": len(j.get("qualifications_found", [])) > 0,
+            "scraped_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+            "notified": 0
+        }
+        database.save_job(job_record)
+        seen_urls.add(url)
+        existing_keys.append({"key": item_key, "source": "IndGovtJobs", "id": 0})
+        new_jobs_added += 1
+        _notify_matching_users(job_record, j.get("full_text", ""), all_users)
 
     database.sync_db_to_json()
     print(f"[MultiScraper] Finished cycle. Added {new_jobs_added} clean jobs (Duplicates & Non-jobs filtered).")
