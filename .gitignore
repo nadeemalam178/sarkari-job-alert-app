@@ -10,15 +10,26 @@ venv/
 *.db
 *.log
 
-# Node & Android Build
+# Node & Legacy Expo
 node_modules/
 **/node_modules/
 .expo/
 **/.expo/
-expo-mobile/android/
-android/
 release-apk/
 *.apk
+
+# Flutter & Android
+.gradle/
+**/.gradle/
+local.properties
+**/local.properties
+.dart_tool/
+**/.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+**/build/
 
 # OS
 .DS_Store

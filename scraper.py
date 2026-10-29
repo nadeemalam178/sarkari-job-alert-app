@@ -180,16 +180,74 @@ def parse_sarkari_detail(job_url):
         if res.status_code != 200:
             return None
         soup = BeautifulSoup(res.text, "html.parser")
+        page_text = soup.get_text(separator=" ", strip=True)
 
-        # Extract Last Date
+        # 1. Dates (Start & Last Date)
+        start_date = ""
+        start_m = re.search(r"Application\s*Begin\s*:\s*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})", page_text, re.I)
+        if start_m:
+            start_date = start_m.group(1)
+
         last_date = ""
-        date_match = re.search(r"Last Date\s*(?:for Apply Online)?\s*:\s*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})", soup.get_text(), re.I)
+        date_match = re.search(r"Last Date\s*(?:for Apply Online)?\s*:\s*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})", page_text, re.I)
         if date_match:
             last_date = date_match.group(1)
         else:
-            dm2 = re.search(r"(\d{1,2}/\d{1,2}/202\d)", soup.get_text())
+            dm2 = re.search(r"(\d{1,2}/\d{1,2}/202\d)", page_text)
             if dm2:
                 last_date = dm2.group(1)
+
+        # 2. Total Posts / Vacancy
+        total_posts = ""
+        post_match = re.search(r"Total\s*(?:Vacancy|Post)[^\d:]*[:\s]*(\d+[\d,]*)\s*(?:Post)?", page_text, re.I)
+        if post_match:
+            total_posts = f"{post_match.group(1).strip()} Posts"
+        else:
+            # Check table headers or cells
+            for td in soup.find_all(["td", "th", "h2", "h3"]):
+                td_txt = td.get_text(strip=True)
+                m = re.search(r"(\d+[\d,]*)\s*(?:Posts?|Vacanc(?:y|ies))", td_txt, re.I)
+                if m and int(m.group(1).replace(",", "")) > 0:
+                    total_posts = f"{m.group(1)} Posts"
+                    break
+
+        # 3. Age Limit & Application Fee
+        age_limit = ""
+        age_m = re.search(r"Age Limit as on[^:\n]*:\s*([^\n\r|]{10,120})", page_text, re.I)
+        if age_m:
+            age_limit = re.sub(r"\s+", " ", age_m.group(1)).strip()
+
+        app_fee = ""
+        fee_m = re.search(r"Application Fee\s*:\s*([^\n\r|]{10,120})", page_text, re.I)
+        if fee_m:
+            app_fee = re.sub(r"\s+", " ", fee_m.group(1)).strip()
+
+        # 4. Action Links: Apply Online, Download Notification, Official Website
+        apply_link = ""
+        notification_link = ""
+        official_website = ""
+
+        for tr in soup.find_all("tr"):
+            row_txt = tr.get_text(" ", strip=True).lower()
+            a = tr.find("a", href=True)
+            if not a:
+                continue
+            href = a["href"].strip()
+            if not href.startswith("http"):
+                continue
+
+            if "apply online" in row_txt and not apply_link:
+                apply_link = href
+            elif any(w in row_txt for w in ["download notification", "notification"]) and not notification_link:
+                notification_link = href
+            elif any(w in row_txt for w in ["official website", "website"]) and not official_website:
+                official_website = href
+
+        # Fallbacks
+        if not apply_link:
+            apply_link = job_url
+        if not notification_link:
+            notification_link = job_url
 
         # Organization
         org = ""
@@ -197,7 +255,6 @@ def parse_sarkari_detail(job_url):
         if h1:
             org = h1.get_text(strip=True)
 
-        page_text = soup.get_text(separator=" ", strip=True)
         snippet = ""
         for tr in soup.find_all("tr"):
             row_text = tr.get_text(" ", strip=True)
@@ -216,7 +273,14 @@ def parse_sarkari_detail(job_url):
 
         found_quals = extract_qualifications_from_text(page_text)
         return {
+            "start_date": start_date or "Active Now",
             "last_date": last_date or "Check Notification",
+            "total_posts": total_posts or "Various Posts",
+            "age_limit": age_limit or "As per recruitment rules",
+            "application_fee": app_fee or "Check official notification",
+            "apply_link": apply_link,
+            "notification_link": notification_link,
+            "official_website": official_website,
             "org": org[:150],
             "eligibility_snippet": snippet,
             "qualifications_found": found_quals,
@@ -388,6 +452,13 @@ def run_scrape_cycle(max_per_source=12):
             "title": item["title"],
             "org": details["org"],
             "last_date": details["last_date"],
+            "start_date": details.get("start_date", "Active Now"),
+            "total_posts": details.get("total_posts", "Various Posts"),
+            "apply_link": details.get("apply_link", url),
+            "notification_link": details.get("notification_link", url),
+            "official_website": details.get("official_website", ""),
+            "age_limit": details.get("age_limit", "As per notification rules"),
+            "application_fee": details.get("application_fee", "Check official notice"),
             "eligibility_snippet": details["eligibility_snippet"],
             "qualifications_found": details["qualifications_found"],
             "matched_keywords": [],
@@ -419,6 +490,13 @@ def run_scrape_cycle(max_per_source=12):
             "title": j["title"],
             "org": j["org"],
             "last_date": j["last_date"],
+            "start_date": j.get("start_date", "Active Now"),
+            "total_posts": j.get("total_posts", "Various Posts"),
+            "apply_link": j.get("apply_link", url),
+            "notification_link": j.get("notification_link", url),
+            "official_website": j.get("official_website", ""),
+            "age_limit": j.get("age_limit", "As per notification rules"),
+            "application_fee": j.get("application_fee", "Check official notice"),
             "eligibility_snippet": j["eligibility_snippet"],
             "qualifications_found": j["qualifications_found"],
             "matched_keywords": [],

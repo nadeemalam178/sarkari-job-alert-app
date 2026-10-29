@@ -45,6 +45,13 @@ def init_db():
             title TEXT,
             org TEXT,
             last_date TEXT,
+            start_date TEXT DEFAULT '',
+            total_posts TEXT DEFAULT '',
+            apply_link TEXT DEFAULT '',
+            notification_link TEXT DEFAULT '',
+            official_website TEXT DEFAULT '',
+            age_limit TEXT DEFAULT '',
+            application_fee TEXT DEFAULT '',
             eligibility_snippet TEXT,
             qualifications_found TEXT,
             matched_keywords TEXT,
@@ -53,6 +60,16 @@ def init_db():
             notified INTEGER DEFAULT 0
         )
     ''')
+
+    # Automatically add missing columns if upgrading existing DB
+    cursor.execute("PRAGMA table_info(jobs)")
+    job_cols = [c[1] for c in cursor.fetchall()]
+    for col_name in ["start_date", "total_posts", "apply_link", "notification_link", "official_website", "age_limit", "application_fee"]:
+        if col_name not in job_cols:
+            try:
+                cursor.execute(f"ALTER TABLE jobs ADD COLUMN {col_name} TEXT DEFAULT ''")
+            except Exception:
+                pass
 
     # 2. Users Table
     cursor.execute('''
@@ -363,14 +380,21 @@ def save_job(job_data):
     cursor = conn.cursor()
     cursor.execute('''
         INSERT OR REPLACE INTO jobs 
-        (source, url, title, org, last_date, eligibility_snippet, qualifications_found, matched_keywords, is_matched, scraped_at, notified)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (source, url, title, org, last_date, start_date, total_posts, apply_link, notification_link, official_website, age_limit, application_fee, eligibility_snippet, qualifications_found, matched_keywords, is_matched, scraped_at, notified)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
         job_data.get("source", "SarkariResult"),
         job_data["url"],
         job_data["title"],
         job_data.get("org", ""),
         job_data.get("last_date", ""),
+        job_data.get("start_date", ""),
+        job_data.get("total_posts", ""),
+        job_data.get("apply_link", ""),
+        job_data.get("notification_link", ""),
+        job_data.get("official_website", ""),
+        job_data.get("age_limit", ""),
+        job_data.get("application_fee", ""),
         job_data.get("eligibility_snippet", ""),
         json.dumps(job_data.get("qualifications_found", [])),
         json.dumps(job_data.get("matched_keywords", [])),
@@ -449,13 +473,21 @@ def get_jobs_for_user(user=None, matched_only=False, search=None, source=None, l
             if matched_only and not is_user_match:
                 continue
 
+            keys = r.keys()
             results.append({
                 "id": r["id"],
-                "source": r["source"] if "source" in r.keys() else "SarkariResult",
+                "source": r["source"] if "source" in keys else "SarkariResult",
                 "url": r["url"],
                 "title": r["title"],
                 "org": r["org"],
-                "last_date": r["last_date"],
+                "last_date": r["last_date"] if "last_date" in keys else "Check Notification",
+                "start_date": r["start_date"] if "start_date" in keys else "",
+                "total_posts": r["total_posts"] if "total_posts" in keys else "",
+                "apply_link": r["apply_link"] if "apply_link" in keys else "",
+                "notification_link": r["notification_link"] if "notification_link" in keys else "",
+                "official_website": r["official_website"] if "official_website" in keys else "",
+                "age_limit": r["age_limit"] if "age_limit" in keys else "",
+                "application_fee": r["application_fee"] if "application_fee" in keys else "",
                 "eligibility_snippet": r["eligibility_snippet"],
                 "qualifications_found": qual_found,
                 "matched_keywords": matched_for_this_user if user else json.loads(r["matched_keywords"] or "[]"),
