@@ -338,19 +338,27 @@ def sync_db_to_json():
             except:
                 qual_found = [r["qualifications_found"]]
 
+            keys = r.keys()
             jobs.append({
                 "id": r["id"],
-                "source": r["source"] if "source" in r.keys() else "SarkariResult",
+                "source": r["source"] if "source" in keys else "SarkariResult",
                 "url": r["url"],
                 "title": r["title"],
-                "org": r["org"],
-                "last_date": r["last_date"],
-                "eligibility_snippet": r["eligibility_snippet"],
+                "org": r["org"] if "org" in keys else "",
+                "last_date": r["last_date"] if "last_date" in keys else "Check Notification",
+                "start_date": r["start_date"] if "start_date" in keys else "",
+                "total_posts": r["total_posts"] if "total_posts" in keys else "",
+                "apply_link": r["apply_link"] if "apply_link" in keys else "",
+                "notification_link": r["notification_link"] if "notification_link" in keys else "",
+                "official_website": r["official_website"] if "official_website" in keys else "",
+                "age_limit": r["age_limit"] if "age_limit" in keys else "",
+                "application_fee": r["application_fee"] if "application_fee" in keys else "",
+                "eligibility_snippet": r["eligibility_snippet"] if "eligibility_snippet" in keys else "",
                 "qualifications_found": qual_found,
-                "matched_keywords": json.loads(r["matched_keywords"] or "[]"),
-                "is_matched": bool(r["is_matched"]),
-                "scraped_at": r["scraped_at"],
-                "notified": bool(r["notified"])
+                "matched_keywords": json.loads(r["matched_keywords"] or "[]") if "matched_keywords" in keys else [],
+                "is_matched": bool(r["is_matched"]) if "is_matched" in keys else False,
+                "scraped_at": r["scraped_at"] if "scraped_at" in keys else "",
+                "notified": bool(r["notified"]) if "notified" in keys else False
             })
         conn.close()
 
@@ -360,7 +368,6 @@ def sync_db_to_json():
     except Exception as e:
         print("Export to JSON failed:", e)
         return []
-
 def get_seen_urls():
     urls = set()
     try:
@@ -405,7 +412,7 @@ def save_job(job_data):
     conn.commit()
     conn.close()
 
-def get_jobs_for_user(user=None, matched_only=False, search=None, source=None, limit=100):
+def get_jobs_for_user(user=None, matched_only=False, search=None, source=None, limit=500):
     try:
         conn = get_db()
         cursor = conn.cursor()

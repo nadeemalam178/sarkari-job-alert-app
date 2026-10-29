@@ -208,7 +208,7 @@ def get_jobs():
     matched_only = request.args.get("matched_only", "false").lower() == "true"
     search = request.args.get("search", "").strip()
     source = request.args.get("source", "").strip()
-    limit = int(request.args.get("limit", 100))
+    limit = int(request.args.get("limit", 500))
 
     jobs = database.get_jobs_for_user(
         user=user,

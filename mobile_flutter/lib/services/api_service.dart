@@ -38,7 +38,25 @@ class ApiService {
         }
       }
     } catch (e) {
-      debugPrint('ApiService fetchJobs network error (using cached / snapshot): $e');
+      debugPrint('ApiService fetchJobs network error (using cloud / cached): $e');
+    }
+
+    // Secondary Fallback: Fetch latest cloud-synced jobs directly from GitHub raw data
+    try {
+      final githubUri = Uri.parse(
+        'https://raw.githubusercontent.com/nadeemalam178/sarkari-job-alert-app/main/data/jobs.json',
+      );
+      final ghResponse = await http.get(githubUri).timeout(const Duration(seconds: 4));
+      if (ghResponse.statusCode == 200) {
+        final List list = jsonDecode(ghResponse.body);
+        final jobs = list.map((e) => JobPost.fromJson(e)).toList();
+        if (jobs.isNotEmpty) {
+          await StorageService.cacheJobs(jobs);
+          return _filterLocal(jobs, source: source, search: search, matchedOnly: matchedOnly);
+        }
+      }
+    } catch (e) {
+      debugPrint('ApiService cloud GitHub raw sync error: $e');
     }
 
     // Primary Fallback: Read local SharedPreferences cache

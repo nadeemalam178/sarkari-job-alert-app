@@ -6,6 +6,7 @@ from bs4 import BeautifulSoup
 from datetime import datetime
 import database
 import notifier
+from concurrent.futures import ThreadPoolExecutor
 
 # Ensure unicode stdout for Windows consoles
 if sys.platform == "win32":
@@ -143,6 +144,176 @@ def extract_qualifications_from_text(text):
                 found.append(category)
                 break
     return list(dict.fromkeys(found))
+
+
+# --- Scraper 1A: Sarkari Result (.com.cm Latest Jobs - HIGHEST PRIORITY) ---
+def scrape_sarkari_cm_latest_jobs(limit=None):
+    """Scrapes all active recruitment listings directly from https://sarkariresult.com.cm/latest-jobs/"""
+    url = "https://sarkariresult.com.cm/latest-jobs/"
+    jobs = []
+    try:
+        res = requests.get(url, headers=HEADERS, timeout=15)
+        if res.status_code != 200:
+            print(f"[Scraper] Failed to fetch {url}, status: {res.status_code}")
+            return []
+        soup = BeautifulSoup(res.text, "html.parser")
+        seen_urls = set()
+
+        for a in soup.find_all("a", href=True):
+            href = a["href"].strip()
+            title = a.get_text(" ", strip=True)
+            if not href.startswith("http") or "sarkariresult.com.cm" not in href or href in seen_urls:
+                continue
+            # Skip non-job site navigation pages
+            if any(href.rstrip("/").endswith(x) for x in ["/admit-card", "/result", "/admission", "/answer-key", "/syllabus", "/contact", "/privacy-policy", "/disclaimer", "/latest-jobs", "/latest-posts", "/about-us"]):
+                continue
+            if href.rstrip("/") == "https://sarkariresult.com.cm":
+                continue
+            if any(p in href for p in ["/category/", "/tag/", "/author/", "/page/"]):
+                continue
+
+            clean_title = re.sub(r"\s+", " ", title).strip()
+            if len(clean_title) > 8 and not is_non_job(clean_title):
+                seen_urls.add(href)
+                jobs.append({
+                    "url": href,
+                    "title": clean_title,
+                    "source": "SarkariResult"
+                })
+                if limit and len(jobs) >= limit:
+                    break
+        print(f"[Scraper] Found {len(jobs)} total jobs on sarkariresult.com.cm/latest-jobs/")
+    except Exception as e:
+        print("[Scraper] sarkariresult.com.cm error:", e)
+    return jobs
+
+def parse_sarkari_cm_detail(job_url, pre_title):
+    """Parses comprehensive job intelligence from a sarkariresult.com.cm detail page"""
+    try:
+        res = requests.get(job_url, headers=HEADERS, timeout=12)
+        if res.status_code != 200:
+            return None
+        soup = BeautifulSoup(res.text, "html.parser")
+        page_text = soup.get_text("\n", strip=True)
+
+        # 1. Start date & Last date
+        start_date = ""
+        sm = re.search(r"Apply\s*Online\s*Start\s*Date\s*:\s*\n*([^\n\r|]{5,40})", page_text, re.I)
+        if not sm:
+            sm = re.search(r"Application\s*Begin\s*:\s*\n*([^\n\r|]{5,40})", page_text, re.I)
+        if sm:
+            start_date = sm.group(1).strip()
+
+        last_date = ""
+        lm = re.search(r"Apply\s*Online\s*Last\s*Date\s*:\s*\n*([^\n\r|]{5,40})", page_text, re.I)
+        if not lm:
+            lm = re.search(r"Last\s*Date\s*(?:for\s*Apply\s*Online)?\s*:\s*\n*([^\n\r|]{5,40})", page_text, re.I)
+        if lm:
+            last_date = lm.group(1).strip()
+
+        # 2. Total Posts
+        total_posts = ""
+        tm = re.search(r"\((\d+[\d,]*)\s*Posts?\)", pre_title, re.I)
+        if tm:
+            total_posts = f"{tm.group(1)} Posts"
+        else:
+            pm = re.search(r"Total\s*(?:Vacancy|Post)[^\d:\n]*[:\s]*(\d+[\d,]*)\s*(?:Post)?", page_text, re.I)
+            if pm:
+                total_posts = f"{pm.group(1).strip()} Posts"
+            else:
+                tbl = soup.find("table")
+                if tbl:
+                    total_sum = 0
+                    for tr in tbl.find_all("tr"):
+                        tds = tr.find_all(["td", "th"])
+                        if len(tds) >= 2:
+                            val = re.sub(r"[^\d]", "", tds[1].get_text())
+                            if val and val.isdigit():
+                                total_sum += int(val)
+                    if total_sum > 0:
+                        total_posts = f"{total_sum} Posts"
+
+        # 3. Age Limit
+        age_limit = ""
+        am = re.search(r"Age\s*Limit[^\n:]*:\s*\n*([^\n\r|]{10,120})", page_text, re.I)
+        if not am:
+            min_age = re.search(r"Minimum\s*Age\s*:\s*\n*([^\n\r|]{3,30})", page_text, re.I)
+            max_age = re.search(r"Maximum\s*Age\s*:\s*\n*([^\n\r|]{3,30})", page_text, re.I)
+            if min_age or max_age:
+                min_str = min_age.group(1).strip() if min_age else "N/A"
+                max_str = max_age.group(1).strip() if max_age else "N/A"
+                age_limit = f"Min: {min_str}, Max: {max_str}"
+        else:
+            age_limit = am.group(1).strip()
+
+        # 4. Application Fee
+        app_fee = ""
+        fee_lines = []
+        lines = [l.strip() for l in page_text.splitlines() if l.strip()]
+        for i, line in enumerate(lines):
+            if "application fee" in line.lower() and i + 1 < len(lines):
+                for sub in lines[i+1:min(len(lines), i+6)]:
+                    if any(x in sub.lower() for x in ["general", "obc", "sc", "st", "ews", "fee refund", "₹", "rs."]):
+                        fee_lines.append(sub)
+                    elif len(fee_lines) > 0:
+                        break
+        if fee_lines:
+            app_fee = " | ".join(fee_lines[:3])
+
+        # 5. Action links (Apply, Notification, Official Website)
+        apply_link = ""
+        notification_link = ""
+        official_website = ""
+
+        for tr in soup.find_all("tr"):
+            row_txt = tr.get_text(" ", strip=True).lower()
+            a = tr.find("a", href=True)
+            if not a:
+                continue
+            href = a["href"].strip()
+            if not href.startswith("http"):
+                continue
+            if "apply online" in row_txt and not apply_link:
+                apply_link = href
+            elif any(w in row_txt for w in ["official notification", "check notification", "download notification"]) and not notification_link:
+                notification_link = href
+            elif any(w in row_txt for w in ["official website", "rrb official website", "website link"]) and not official_website:
+                official_website = href
+
+        # 6. Organization & Eligibility
+        h1 = soup.find("h1") or soup.find("h2")
+        org = h1.get_text(strip=True) if h1 else ""
+
+        snippet = ""
+        for tr in soup.find_all("tr"):
+            txt = tr.get_text(" ", strip=True)
+            if any(w in txt.lower() for w in ["eligibility", "qualification", "degree", "passed", "diploma", "graduate", "10th", "12th"]):
+                if 20 < len(txt) < 500:
+                    snippet += txt + " | "
+        if not snippet:
+            em = re.search(r"Eligibility\s*Criteria[^\n]*\n*([^\n\r]{20,400})", page_text, re.I)
+            if em:
+                snippet = em.group(1).strip()
+
+        quals_found = extract_qualifications_from_text(page_text + " " + pre_title)
+
+        return {
+            "start_date": start_date or "Active Now",
+            "last_date": last_date or "Check Notification",
+            "total_posts": total_posts or "Various Posts",
+            "age_limit": age_limit or "As per recruitment rules",
+            "application_fee": app_fee or "Check official notice",
+            "apply_link": apply_link or job_url,
+            "notification_link": notification_link or job_url,
+            "official_website": official_website or "",
+            "org": org[:150],
+            "eligibility_snippet": snippet[:500] or "Refer to official notification.",
+            "qualifications_found": quals_found,
+            "full_text": page_text[:2000]
+        }
+    except Exception as e:
+        print(f"[Scraper] Failed parsing sarkariresult.com.cm {job_url}: {e}")
+        return None
 
 # --- Scraper 1: Sarkari Result (HIGHEST PRIORITY) ---
 def scrape_sarkari_result(limit=20):
@@ -413,22 +584,71 @@ def parse_rojgar_detail(job_url, pre_title, pre_quals):
         return None
 
 # --- Unified Deduplicated Scrape Cycle with Sarkari Result Priority ---
-def run_scrape_cycle(max_per_source=12):
+def run_scrape_cycle(max_per_source=150):
     seen_urls = database.get_seen_urls()
-    print(f"[MultiScraper] Starting cycle. Existing URLs: {len(seen_urls)}")
+    print(f"[MultiScraper] Starting cycle. Existing URLs in DB: {len(seen_urls)}")
 
     all_users = database.get_all_users_for_notifications()
     new_jobs_added = 0
 
-    # Cache normalized keys of all existing jobs in DB to prevent duplicates across portals
-    existing_jobs = database.get_all_jobs(limit=500)
+    existing_jobs = database.get_all_jobs(limit=1000)
     existing_keys = []
     for ej in existing_jobs:
         k = normalize_job_key(ej["title"], ej.get("org", ""))
         existing_keys.append({"key": k, "source": ej.get("source", "SarkariResult"), "id": ej["id"]})
 
-    # 1. PRIMARY SOURCE: Sarkari Result (Always preferred!)
-    sr_links = scrape_sarkari_result(limit=max_per_source)
+    # 1. PRIMARY SOURCE: https://sarkariresult.com.cm/latest-jobs/ (FULL PAGE SCRAPE)
+    cm_items = scrape_sarkari_cm_latest_jobs(limit=max_per_source)
+    cm_unseen = [item for item in cm_items if item["url"] not in seen_urls]
+    print(f"[MultiScraper] Fetching details for {len(cm_unseen)} new sarkariresult.com.cm jobs...")
+
+    def _fetch_cm(item):
+        try:
+            det = parse_sarkari_cm_detail(item["url"], item["title"])
+            if det:
+                return {"item": item, "details": det}
+        except Exception as e:
+            print(f"[Scraper] Error fetching {item['url']}: {e}")
+        return None
+
+    if cm_unseen:
+        with ThreadPoolExecutor(max_workers=8) as ex:
+            for res in ex.map(_fetch_cm, cm_unseen):
+                if not res:
+                    continue
+                item = res["item"]
+                details = res["details"]
+                url = item["url"]
+                item_key = normalize_job_key(item["title"], details["org"])
+
+                job_record = {
+                    "source": "SarkariResult",
+                    "url": url,
+                    "title": item["title"],
+                    "org": details["org"],
+                    "last_date": details["last_date"],
+                    "start_date": details.get("start_date", "Active Now"),
+                    "total_posts": details.get("total_posts", "Various Posts"),
+                    "apply_link": details.get("apply_link", url),
+                    "notification_link": details.get("notification_link", url),
+                    "official_website": details.get("official_website", ""),
+                    "age_limit": details.get("age_limit", "As per notification rules"),
+                    "application_fee": details.get("application_fee", "Check official notice"),
+                    "eligibility_snippet": details["eligibility_snippet"],
+                    "qualifications_found": details["qualifications_found"],
+                    "matched_keywords": [],
+                    "is_matched": len(details["qualifications_found"]) > 0,
+                    "scraped_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                    "notified": 0
+                }
+                database.save_job(job_record)
+                seen_urls.add(url)
+                existing_keys.append({"key": item_key, "source": "SarkariResult", "id": 0})
+                new_jobs_added += 1
+                _notify_matching_users(job_record, details["full_text"], all_users)
+
+    # 1B. COMPLEMENTARY SOURCE: www.sarkariresult.com/latestjob/
+    sr_links = scrape_sarkari_result(limit=30)
     for item in sr_links:
         url = item["url"]
         if url in seen_urls:
@@ -438,13 +658,8 @@ def run_scrape_cycle(max_per_source=12):
             continue
 
         item_key = normalize_job_key(item["title"], details["org"])
-        
-        # Check if another portal added this job previously; if so, replace/upgrade it to Sarkari Result!
-        dup_found = False
-        for ek in existing_keys:
-            if are_titles_duplicate(item_key, ek["key"]):
-                dup_found = True
-                break
+        if any(are_titles_duplicate(item_key, ek["key"]) for ek in existing_keys):
+            continue
 
         job_record = {
             "source": "SarkariResult",
@@ -472,8 +687,8 @@ def run_scrape_cycle(max_per_source=12):
         new_jobs_added += 1
         _notify_matching_users(job_record, details["full_text"], all_users)
 
-    # 2. SECONDARY SOURCE: FreeJobAlert (Skipped if Sarkari Result already has it)
-    fja_jobs = scrape_freejobalert(limit=max_per_source)
+    # 2. SECONDARY SOURCE: FreeJobAlert (Skipped if already on SarkariResult)
+    fja_jobs = scrape_freejobalert(limit=30)
     for j in fja_jobs:
         url = j["url"]
         if url in seen_urls:
@@ -481,7 +696,6 @@ def run_scrape_cycle(max_per_source=12):
 
         item_key = normalize_job_key(j["title"], j["org"])
         if any(are_titles_duplicate(item_key, ek["key"]) for ek in existing_keys):
-            # Duplicate job already present from Sarkari Result / existing! Skip!
             continue
 
         job_record = {
@@ -510,8 +724,8 @@ def run_scrape_cycle(max_per_source=12):
         new_jobs_added += 1
         _notify_matching_users(job_record, j["full_text"], all_users)
 
-    # 3. TERTIARY SOURCE: Rojgar Result (Skipped if Sarkari Result / FreeJobAlert already has it)
-    rr_links = scrape_rojgar_result(limit=max_per_source)
+    # 3. TERTIARY SOURCE: Rojgar Result (Skipped if already on SarkariResult/FreeJobAlert)
+    rr_links = scrape_rojgar_result(limit=30)
     for item in rr_links:
         url = item["url"]
         if url in seen_urls:
@@ -523,7 +737,6 @@ def run_scrape_cycle(max_per_source=12):
 
         item_key = normalize_job_key(item["title"], details["org"])
         if any(are_titles_duplicate(item_key, ek["key"]) for ek in existing_keys):
-            # Duplicate job! Skip!
             continue
 
         job_record = {
@@ -576,5 +789,5 @@ def rematch_all_cached_jobs():
     return database.sync_db_to_json()
 
 if __name__ == "__main__":
-    print("Testing deduplicated scrape...")
-    run_scrape_cycle(max_per_source=3)
+    print("Executing full multi-portal scrape cycle including sarkariresult.com.cm/latest-jobs/...")
+    run_scrape_cycle(max_per_source=150)

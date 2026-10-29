@@ -22,7 +22,7 @@ class OtaUpdateInfo {
 }
 
 class OtaUpdateService {
-  static const String currentVersion = '2.1.0';
+  static const String currentVersion = '2.1.1';
   static const String githubRepo = 'nadeemalam178/sarkari-job-alert-app';
 
   /// Check GitHub Releases API for over-the-air updates
