@@ -28,8 +28,8 @@ class CustomBottomDock extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _buildItem(
-            icon: Icons.home_rounded,
-            label: 'Home',
+            icon: Icons.person_pin_rounded,
+            label: 'For You',
             isSelected: currentIndex == 0,
             palette: palette,
             onTap: () => onTabSelected(0),

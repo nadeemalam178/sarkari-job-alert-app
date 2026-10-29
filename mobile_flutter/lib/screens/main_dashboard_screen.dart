@@ -50,12 +50,13 @@ class MainDashboardScreen extends StatefulWidget {
 }
 
 class _MainDashboardScreenState extends State<MainDashboardScreen> {
-  int _currentTab = 0; // 0: Home, 1: Explore, 2: Saved, 3: Alerts
+  int _currentTab = 0; // 0: For You, 1: Explore, 2: Saved, 3: Alerts
   bool _isLoading = false;
-  bool _isPullRefreshing = false;
   bool _bannerDismissed = false;
   bool _isBarsVisible = true;
-  String? _expandedSectorId;
+  String? _expandedSectorIdForYou;
+  String? _expandedSectorIdExplore;
+  bool _exploreViewBySector = true;
 
   List<JobPost> _allJobs = [];
   List<String> _selectedQualifications = ['B.SC', 'GRADUATE', '12TH / 10+2'];
@@ -71,27 +72,27 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
   static const List<SectorHub> _sectors = [
     SectorHub(
       id: 'railways',
-      title: 'Railways (RRB)',
-      subtitle: 'RRB NTPC, Technician, Station Master & Group D',
+      title: 'Railways & Metro (RRB)',
+      subtitle: 'RRB NTPC, Technician, Station Master, ALP & Metro Rail',
       icon: Icons.train_rounded,
       accentColor: Color(0xFF38BDF8),
-      keywords: ['RRB', 'RAILWAY', 'NTPC', 'TECHNICIAN', 'LOCO', 'STATION MASTER', 'GROUP D'],
+      keywords: ['RRB', 'RAILWAY', 'NTPC', 'TECHNICIAN', 'LOCO', 'STATION MASTER', 'GROUP D', 'METRO', 'ALP', 'TRAIN', 'RPF'],
     ),
     SectorHub(
       id: 'banking',
       title: 'Banking & Financial Services',
-      subtitle: 'Bank PO, Clerk, RBI Assistant, NABARD & PSBs',
+      subtitle: 'Bank PO, Clerk, RBI, SBI, IBPS, NABARD & PSBs',
       icon: Icons.account_balance_rounded,
       accentColor: Color(0xFF10B981),
-      keywords: ['BANK', 'RBI', 'IBPS', 'SBI', 'NABARD', 'FINANCE', 'ACCOUNTANT', 'CLERK'],
+      keywords: ['BANK', 'RBI', 'IBPS', 'SBI', 'NABARD', 'FINANCE', 'ACCOUNTANT', 'CLERK', 'PO', 'TMB', 'NABFINS', 'COOPERATIVE', 'CREDIT', 'INSURANCE', 'LIC'],
     ),
     SectorHub(
       id: 'teaching',
-      title: 'Teaching & Education',
-      subtitle: 'BPSC TRE, UPESSC, CTET, STET & College Lecturers',
+      title: 'Teaching & Academia',
+      subtitle: 'BPSC TRE, UPESSC, CTET, STET, KVS, NVS & Professors',
       icon: Icons.school_rounded,
       accentColor: Color(0xFF2DD4BF),
-      keywords: ['TEACH', 'TET', 'B.ED', 'CTET', 'PROFESSOR', 'BPSC TRE', 'UPESSC', 'LECTURER', 'BLET', 'LIBRARY'],
+      keywords: ['TEACH', 'TET', 'B.ED', 'CTET', 'PROFESSOR', 'BPSC TRE', 'UPESSC', 'LECTURER', 'BLET', 'LIBRARY', 'SCHOOL', 'EDUCATION', 'FACULTY', 'JEPC', 'INSTRUCTOR'],
     ),
     SectorHub(
       id: 'upsc_ssc',
@@ -99,31 +100,39 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
       subtitle: 'UPSC Civil Services, SSC CGL, CHSL, MTS & State PSCs',
       icon: Icons.assured_workload_rounded,
       accentColor: Color(0xFFA78BFA),
-      keywords: ['UPSC', 'SSC', 'CGL', 'CHSL', 'CIVIL SERVICES', 'COMMISSION', 'MTS', 'PSC', 'JUDICIAL'],
+      keywords: ['UPSC', 'SSC', 'CGL', 'CHSL', 'CIVIL SERVICES', 'COMMISSION', 'MTS', 'PSC', 'JUDICIAL', 'COURT', 'HIGH COURT', 'DISTRICT COURT', 'SUPREME COURT', 'LAW CLERK'],
     ),
     SectorHub(
       id: 'defence_police',
       title: 'Defence & Police Forces',
-      subtitle: 'Army, Navy, ITBP, CRPF, BSF & State Police SI/Constable',
+      subtitle: 'Army, Navy, ITBP, CRPF, BSF, Fire & State Police SI',
       icon: Icons.shield_rounded,
       accentColor: Color(0xFFF87171),
-      keywords: ['POLICE', 'DEFENCE', 'ARMY', 'NAVY', 'AIR FORCE', 'CRPF', 'ITBP', 'BSF', 'CONSTABLE', 'SI', 'SPORTS QUOTA'],
+      keywords: ['POLICE', 'DEFENCE', 'ARMY', 'NAVY', 'AIR FORCE', 'CRPF', 'ITBP', 'BSF', 'CONSTABLE', 'SI', 'SPORTS QUOTA', 'FIRE', 'FIRE OFFICER', 'JAIL', 'WARDER', 'SUB FIRE', 'COMMANDANT', 'ARMED'],
     ),
     SectorHub(
       id: 'technical_psu',
       title: 'Technical, PSU & Engineering',
-      subtitle: 'BDL Bhanur, ISRO, IREL, NPCC, Engineers & ITI Trades',
+      subtitle: 'ISRO, BDL, IREL, NPCC, ITI Trades, B.Tech & Diploma',
       icon: Icons.precision_manufacturing_rounded,
       accentColor: Color(0xFFFB923C),
-      keywords: ['ENGINEER', 'TECHNICAL', 'PSU', 'ISRO', 'BDL', 'IREL', 'NPCC', 'B.TECH', 'DIPLOMA', 'ITI', 'TRADESMAN'],
+      keywords: ['ENGINEER', 'TECHNICAL', 'PSU', 'ISRO', 'BDL', 'IREL', 'NPCC', 'B.TECH', 'DIPLOMA', 'ITI', 'TRADESMAN', 'DEVELOPER', 'PROGRAMMER', 'IOCL', 'ONGC', 'SAIL', 'GAIL', 'POWER GRID', 'BHANUR'],
     ),
     SectorHub(
       id: 'medical_health',
       title: 'Medical & Healthcare Services',
-      subtitle: 'Medical Officers, Pharmacists, GNM Nursing & Staff',
+      subtitle: 'AIIMS, Medical Officers, Pharmacists, GNM Nursing & Staff',
       icon: Icons.local_hospital_rounded,
       accentColor: Color(0xFFF472B6),
-      keywords: ['MEDICAL', 'HEALTH', 'HOSPITAL', 'DOCTOR', 'NURSE', 'PHARMACIST', 'CMO', 'RAEBARELI'],
+      keywords: ['MEDICAL', 'HEALTH', 'HOSPITAL', 'DOCTOR', 'NURSE', 'PHARMACIST', 'CMO', 'RAEBARELI', 'AIIMS', 'PARAMEDICAL', 'RGSSH', 'DHFWS', 'AYUSH', 'DENTAL', 'VETERINARY'],
+    ),
+    SectorHub(
+      id: 'admin_depts',
+      title: 'State & Central Departments',
+      subtitle: 'Secretariats, Municipal, Boards, Revenue & Housing',
+      icon: Icons.location_city_rounded,
+      accentColor: Color(0xFFFBBF24),
+      keywords: ['DEPARTMENT', 'BOARD', 'MUNICIPAL', 'CORPORATION', 'DISTRICT', 'SECRETARIAT', 'MINISTRY', 'REVENUE', 'PANCHAYAT', 'EXCISE', 'DEVELOPMENT', 'AUTHORITY', 'HOUSING', 'TRANSPORT', 'RURAL'],
     ),
   ];
 
@@ -163,40 +172,43 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
       });
     }
 
-    _silentBackgroundSync();
+    _loadMasterQualifications();
+    _syncLatestJobs();
   }
 
-  Future<void> _silentBackgroundSync() async {
+  Future<void> _loadMasterQualifications() async {
+    try {
+      final res = await ApiService.fetchQualifications();
+      if (res.isNotEmpty && mounted) {
+        setState(() => _masterQualifications = res);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _syncLatestJobs() async {
     try {
       final freshJobs = await ApiService.fetchJobs();
-      final masterQuals = await ApiService.fetchQualifications();
-      if (mounted) {
+      if (freshJobs.isNotEmpty && mounted) {
         setState(() {
-          if (freshJobs.isNotEmpty) _allJobs = freshJobs;
-          _masterQualifications = masterQuals;
+          _allJobs = freshJobs;
           _isLoading = false;
         });
+        await StorageService.cacheJobs(freshJobs);
       }
-    } catch (_) {
+    } catch (e) {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
   Future<void> _handlePullRefresh() async {
-    if (_isPullRefreshing) return;
-    setState(() => _isPullRefreshing = true);
-
     try {
-      await ApiService.triggerScrape();
-      final freshJobs = await ApiService.fetchJobs(
-        source: _selectedSource,
-        search: _searchQuery,
-      );
-      if (mounted && freshJobs.isNotEmpty) {
+      final freshJobs = await ApiService.fetchJobs();
+      if (freshJobs.isNotEmpty && mounted) {
         setState(() => _allJobs = freshJobs);
+        await StorageService.cacheJobs(freshJobs);
       }
+    } catch (_) {
     } finally {
-      if (mounted) setState(() => _isPullRefreshing = false);
     }
   }
 
@@ -430,7 +442,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
   Widget _buildCurrentTabContent(AppPalette palette, double topPadding, double bottomPadding) {
     switch (_currentTab) {
       case 0:
-        return _buildDashboardView(palette, topPadding, bottomPadding);
+        return _buildForYouDashboardView(palette, topPadding, bottomPadding);
       case 1:
         return _buildExploreDirectoryView(palette, topPadding, bottomPadding);
       case 2:
@@ -438,7 +450,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
       case 3:
         return _buildAlertsView(palette, topPadding, bottomPadding);
       default:
-        return _buildDashboardView(palette, topPadding, bottomPadding);
+        return _buildForYouDashboardView(palette, topPadding, bottomPadding);
     }
   }
 
@@ -635,8 +647,8 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     );
   }
 
-  // --- TAB 0: HOME COMMAND CENTER (Sector Accordion Hub) ---
-  Widget _buildDashboardView(AppPalette palette, double topInset, double bottomInset) {
+  // --- TAB 0: "FOR YOU" (Strictly Filtered Matched Vacancies Only) ---
+  Widget _buildForYouDashboardView(AppPalette palette, double topInset, double bottomInset) {
     final matchedJobs = _getMatchedJobs();
 
     return RefreshIndicator(
@@ -648,59 +660,74 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 1. Hero Metric Card
+            // 1. Hero Metric Card - FOR YOU (Strictly Matched Jobs, stays on For You)
             HeroMetricCard(
-              totalJobs: _allJobs.length,
+              totalJobs: matchedJobs.length,
               matchedCount: matchedJobs.length,
-              onTap: () => setState(() => _currentTab = 1),
+              title: '${matchedJobs.length} Eligible Vacancies',
+              subtitle: 'Strictly matching your ${_selectedQualifications.length} qualifications • Tap to adjust',
+              actionIcon: Icons.tune_rounded,
+              onTap: _openQualificationPicker, // STAYS ON FOR YOU, OPENS QUALIFICATION PICKER
             ),
 
-            // 2. Section Header: Recruitment Sectors
+            // 2. Section Header: Recruitment Sectors for Candidate
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 10),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Explore by Sector Subsections',
-                    style: TextStyle(
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.w800,
-                      color: palette.textPrimary,
-                      letterSpacing: -0.2,
-                    ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Your Eligible Sector Hubs',
+                        style: TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w800,
+                          color: palette.textPrimary,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Showing only vacancies you qualify for',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: palette.textSecondary,
+                        ),
+                      ),
+                    ],
                   ),
-                  InkWell(
-                    onTap: () => setState(() => _currentTab = 1),
-                    child: Row(
-                      children: [
-                        Text(
-                          'View all ${_allJobs.length}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: palette.accentPrimary,
-                          ),
-                        ),
-                        const SizedBox(width: 2),
-                        Icon(
-                          Icons.arrow_forward_rounded,
-                          size: 13,
-                          color: palette.accentPrimary,
-                        ),
-                      ],
+                  TextButton.icon(
+                    onPressed: _openQualificationPicker,
+                    icon: const Icon(Icons.tune_rounded, size: 14),
+                    label: const Text('Filters', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700)),
+                    style: TextButton.styleFrom(
+                      foregroundColor: palette.accentPrimary,
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     ),
                   ),
                 ],
               ),
             ),
 
-            // 3. Clean Accordion Sector Cards (Uncluttered Home experience)
+            // 3. Sector Accordion Cards (Each filtered strictly for candidate's qualifications)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Column(
                 children: _sectors.map((sec) {
-                  return _buildSectorAccordionCard(sec, palette);
+                  return _buildSectorAccordionCard(
+                    sector: sec,
+                    sourceJobs: matchedJobs, // ONLY MATCHED JOBS ON FOR YOU!
+                    palette: palette,
+                    isForYouMode: true,
+                    isExpanded: _expandedSectorIdForYou == sec.id,
+                    onToggle: () {
+                      setState(() {
+                        _expandedSectorIdForYou = _expandedSectorIdForYou == sec.id ? null : sec.id;
+                      });
+                    },
+                  );
                 }).toList(),
               ),
             ),
@@ -710,14 +737,19 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     );
   }
 
-  // Clean, uncluttered Sector Accordion Card
-  Widget _buildSectorAccordionCard(SectorHub sector, AppPalette palette) {
-    final sectorJobs = _allJobs.where((j) {
-      final text = '${j.title} ${j.org} ${j.eligibilitySnippet}'.toUpperCase();
+  // Clean, spacious Sector Accordion Card (De-shrinked with full-width JobCards)
+  Widget _buildSectorAccordionCard({
+    required SectorHub sector,
+    required List<JobPost> sourceJobs,
+    required AppPalette palette,
+    required bool isForYouMode,
+    required bool isExpanded,
+    required VoidCallback onToggle,
+  }) {
+    final sectorJobs = sourceJobs.where((j) {
+      final text = '${j.title} ${j.org} ${j.eligibilitySnippet} ${j.qualificationsFound.join(" ")}'.toUpperCase();
       return sector.keywords.any((k) => text.contains(k));
     }).toList();
-
-    final isExpanded = _expandedSectorId == sector.id;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -746,11 +778,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
             // Header Bar
             TactilePress(
               scaleFactor: 0.98,
-              onTap: () {
-                setState(() {
-                  _expandedSectorId = isExpanded ? null : sector.id;
-                });
-              },
+              onTap: onToggle,
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
                 child: Row(
@@ -804,7 +832,9 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                         ),
                       ),
                       child: Text(
-                        '${sectorJobs.length} Jobs',
+                        isForYouMode
+                            ? '${sectorJobs.length} Eligible'
+                            : '${sectorJobs.length} Openings',
                         style: TextStyle(
                           fontSize: 10.5,
                           fontWeight: FontWeight.w700,
@@ -828,66 +858,55 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
               ),
             ),
 
-            // Collapsible Accordion Subsection Body
+            // Collapsible Accordion Subsection Body (Generous, de-shrinked layout)
             AnimatedCrossFade(
               duration: const Duration(milliseconds: 260),
               firstCurve: Curves.easeOutCubic,
               secondCurve: Curves.easeOutCubic,
               crossFadeState: isExpanded ? CrossFadeState.showFirst : CrossFadeState.showSecond,
               firstChild: Padding(
-                padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+                padding: const EdgeInsets.fromLTRB(10, 0, 10, 12),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Divider(height: 1, color: palette.cardBorder),
                     const SizedBox(height: 10),
                     if (sectorJobs.isEmpty)
                       Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Text(
-                          'No vacancies found in this sector right now.',
-                          style: TextStyle(fontSize: 12, color: palette.textSecondary),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        child: Column(
+                          children: [
+                            Text(
+                              isForYouMode
+                                  ? 'No vacancies currently match your qualification in this sector.'
+                                  : 'No vacancies found in this sector.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontSize: 12, color: palette.textSecondary),
+                            ),
+                            if (isForYouMode) ...[
+                              const SizedBox(height: 8),
+                              TextButton.icon(
+                                onPressed: _openQualificationPicker,
+                                icon: const Icon(Icons.tune_rounded, size: 14),
+                                label: const Text('Add / Edit Qualifications', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700)),
+                                style: TextButton.styleFrom(
+                                  foregroundColor: sector.accentColor,
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                       )
                     else
-                      ...sectorJobs.take(4).map((j) {
+                      ...sectorJobs.map((j) {
                         final isSaved = _savedJobIds.contains(j.id);
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: JobCard(
-                            job: j,
-                            isSaved: isSaved,
-                            onToggleSave: () => _toggleSaveJob(j.id),
-                          ),
+                        return JobCard(
+                          job: j,
+                          isSaved: isSaved,
+                          onToggleSave: () => _toggleSaveJob(j.id),
+                          margin: const EdgeInsets.only(bottom: 8), // DE-SHRINK: Zero horizontal margin so it uses full natural width
                         );
                       }),
-                    if (sectorJobs.length > 4)
-                      InkWell(
-                        onTap: () {
-                          setState(() {
-                            _searchController.text = sector.keywords.first;
-                            _searchQuery = sector.keywords.first;
-                            _currentTab = 1;
-                          });
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.only(top: 6),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                'View all ${sectorJobs.length} in Explore',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: sector.accentColor,
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              Icon(Icons.arrow_forward_rounded, size: 14, color: sector.accentColor),
-                            ],
-                          ),
-                        ),
-                      ),
                   ],
                 ),
               ),
@@ -899,7 +918,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     );
   }
 
-  // --- TAB 1: EXPLORE DIRECTORY (Full Unified Pool Across All Portals) ---
+  // --- TAB 1: EXPLORE DIRECTORY (Total Vacancies with Sector Subsections + Flat List Toggle) ---
   Widget _buildExploreDirectoryView(AppPalette palette, double topInset, double bottomInset) {
     final exploreJobs = _getFilteredExploreJobs();
 
@@ -914,6 +933,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SizedBox(height: topInset + 4),
+
                 // Fast instant search bar
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 4, 20, 6),
@@ -959,40 +979,136 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                     setState(() => _selectedSource = src);
                   },
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
+
+                // Header with Total Vacancy Count and View Mode Toggle (By Sector vs Flat List)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 10),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'All Vacancies Directory',
+                            style: TextStyle(
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w800,
+                              color: palette.textPrimary,
+                              letterSpacing: -0.2,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Total ${exploreJobs.length} postings across all qualifications',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: palette.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      // View Mode Toggle Button
+                      TactilePress(
+                        scaleFactor: 0.94,
+                        onTap: () {
+                          setState(() {
+                            _exploreViewBySector = !_exploreViewBySector;
+                          });
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: palette.surfaceGlassHigh,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: palette.cardBorder, width: 0.8),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                _exploreViewBySector ? Icons.view_list_rounded : Icons.folder_copy_rounded,
+                                size: 14,
+                                color: palette.accentPrimary,
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                _exploreViewBySector ? 'Flat List' : 'Sector View',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: palette.accentPrimary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
-          if (exploreJobs.isEmpty)
-            SliverFillRemaining(
-              hasScrollBody: false,
-              child: _buildEmptyState(
-                'No vacancies found',
-                'Try adjusting your search query or portal filters.',
-                palette,
-              ),
-            )
-          else
+
+          // Sector Accordion View in Explore (Same as For You, but showing TOTAL vacancies)
+          if (_exploreViewBySector)
             SliverPadding(
-              padding: EdgeInsets.only(bottom: bottomInset + 20),
+              padding: EdgeInsets.fromLTRB(16, 0, 16, bottomInset + 20),
               sliver: SliverList(
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
-                    final job = exploreJobs[index];
-                    final isSaved = _savedJobIds.contains(job.id);
-                    return StaggeredFadeSlide(
-                      index: index,
-                      child: JobCard(
-                        job: job,
-                        isSaved: isSaved,
-                        onToggleSave: () => _toggleSaveJob(job.id),
-                      ),
+                    final sec = _sectors[index];
+                    return _buildSectorAccordionCard(
+                      sector: sec,
+                      sourceJobs: exploreJobs, // TOTAL JOBS IN EXPLORE!
+                      palette: palette,
+                      isForYouMode: false,
+                      isExpanded: _expandedSectorIdExplore == sec.id,
+                      onToggle: () {
+                        setState(() {
+                          _expandedSectorIdExplore = _expandedSectorIdExplore == sec.id ? null : sec.id;
+                        });
+                      },
                     );
                   },
-                  childCount: exploreJobs.length,
+                  childCount: _sectors.length,
                 ),
               ),
-            ),
+            )
+          else
+            // Flat List View in Explore
+            if (exploreJobs.isEmpty)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: _buildEmptyState(
+                  'No vacancies found',
+                  'Try adjusting your search query or portal filters.',
+                  palette,
+                ),
+              )
+            else
+              SliverPadding(
+                padding: EdgeInsets.only(bottom: bottomInset + 20),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final job = exploreJobs[index];
+                      final isSaved = _savedJobIds.contains(job.id);
+                      return StaggeredFadeSlide(
+                        index: index,
+                        child: JobCard(
+                          job: job,
+                          isSaved: isSaved,
+                          onToggleSave: () => _toggleSaveJob(job.id),
+                        ),
+                      );
+                    },
+                    childCount: exploreJobs.length,
+                  ),
+                ),
+              ),
         ],
       ),
     );

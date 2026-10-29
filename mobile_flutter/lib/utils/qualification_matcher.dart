@@ -15,16 +15,48 @@ class QualificationMatcher {
       streams.add(q);
 
       if (q == 'B.SC' || q.contains('B.SC') || q.contains('BSC')) {
-        streams.addAll(['B.SC', 'GRADUATE', '12TH / 10+2', '12TH PCM', '10TH', 'SCIENCE']);
+        streams.addAll([
+          'B.SC',
+          'GRADUATE',
+          '12TH / 10+2',
+          '12TH PCM',
+          '10TH',
+          'SCIENCE',
+        ]);
       }
       if (q == 'GRADUATE' || q.contains('GRADUATE')) {
-        streams.addAll(['GRADUATE', '12TH / 10+2', '10TH', 'BA', 'B.SC', 'B.COM', 'BBA']);
+        streams.addAll([
+          'GRADUATE',
+          '12TH / 10+2',
+          '10TH',
+          'BA',
+          'B.SC',
+          'B.COM',
+          'BBA',
+        ]);
       }
-      if (q == 'B.TECH / B.E' || q.contains('B.TECH') || q.contains('ENGINEERING')) {
-        streams.addAll(['B.TECH / B.E', 'GRADUATE', 'DIPLOMA', '12TH PCM', '12TH / 10+2', '10TH', 'ENGINEERING']);
+      if (q == 'B.TECH / B.E' ||
+          q.contains('B.TECH') ||
+          q.contains('ENGINEERING')) {
+        streams.addAll([
+          'B.TECH / B.E',
+          'GRADUATE',
+          'DIPLOMA',
+          '12TH PCM',
+          '12TH / 10+2',
+          '10TH',
+          'ENGINEERING',
+        ]);
       }
       if (q == 'B.COM') {
-        streams.addAll(['B.COM', 'GRADUATE', '12TH / 10+2', '10TH', 'COMMERCE', 'FINANCE']);
+        streams.addAll([
+          'B.COM',
+          'GRADUATE',
+          '12TH / 10+2',
+          '10TH',
+          'COMMERCE',
+          'FINANCE',
+        ]);
       }
       if (q == 'BA') {
         streams.addAll(['BA', 'GRADUATE', '12TH / 10+2', '10TH', 'ARTS']);
@@ -36,21 +68,58 @@ class QualificationMatcher {
         streams.addAll(['LLB', 'GRADUATE', '12TH / 10+2', '10TH', 'LAW']);
       }
       if (q == 'MBBS / BDS') {
-        streams.addAll(['MBBS / BDS', 'GRADUATE', '12TH PCB', '12TH / 10+2', '10TH', 'MEDICAL']);
+        streams.addAll([
+          'MBBS / BDS',
+          'GRADUATE',
+          '12TH PCB',
+          '12TH / 10+2',
+          '10TH',
+          'MEDICAL',
+        ]);
       }
       if (q.contains('PHARM')) {
-        streams.addAll(['B.PHARM / D.PHARM', '12TH PCB', '12TH / 10+2', '10TH', 'PHARMACY']);
+        streams.addAll([
+          'B.PHARM / D.PHARM',
+          '12TH PCB',
+          '12TH / 10+2',
+          '10TH',
+          'PHARMACY',
+        ]);
       }
       if (q.contains('NURSING')) {
-        streams.addAll(['NURSING (B.SC / GNM)', '12TH PCB', '12TH / 10+2', '10TH', 'NURSING']);
+        streams.addAll([
+          'NURSING (B.SC / GNM)',
+          '12TH PCB',
+          '12TH / 10+2',
+          '10TH',
+          'NURSING',
+        ]);
       }
-      if (q == 'POST GRADUATE' || q.contains('POST GRADUATE') || q.contains('MASTER') || q == 'MCA') {
-        streams.addAll(['POST GRADUATE', 'GRADUATE', '12TH / 10+2', '10TH', 'MCA']);
+      if (q == 'POST GRADUATE' ||
+          q.contains('POST GRADUATE') ||
+          q.contains('MASTER') ||
+          q == 'MCA') {
+        streams.addAll([
+          'POST GRADUATE',
+          'GRADUATE',
+          '12TH / 10+2',
+          '10TH',
+          'MCA',
+        ]);
       }
       if (q.contains('PH.D')) {
-        streams.addAll(['PH.D / RESEARCH', 'POST GRADUATE', 'GRADUATE', '12TH / 10+2', '10TH']);
+        streams.addAll([
+          'PH.D / RESEARCH',
+          'POST GRADUATE',
+          'GRADUATE',
+          '12TH / 10+2',
+          '10TH',
+        ]);
       }
-      if (q == '12TH / 10+2' || q == '12TH PCM' || q == '12TH PCB' || q.contains('12TH')) {
+      if (q == '12TH / 10+2' ||
+          q == '12TH PCM' ||
+          q == '12TH PCB' ||
+          q.contains('12TH')) {
         streams.addAll(['12TH / 10+2', '10TH']);
       }
       if (q == '10TH') {
@@ -78,7 +147,12 @@ class QualificationMatcher {
         streams.addAll(['CCC', 'COMPUTER']);
       }
       if (q.contains('TYPING')) {
-        streams.addAll(['TYPING', 'TYPING (HINDI)', 'TYPING (ENGLISH)', 'CLERK']);
+        streams.addAll([
+          'TYPING',
+          'TYPING (HINDI)',
+          'TYPING (ENGLISH)',
+          'CLERK',
+        ]);
       }
       if (q.contains('STENO')) {
         streams.addAll(['STENO', 'SHORTHAND']);
@@ -98,7 +172,9 @@ class QualificationMatcher {
     if (candidateQuals.isEmpty) return true;
     final eligibleStreams = getEligibleStreams(candidateQuals);
 
-    final jobQuals = job.qualificationsFound.map((e) => e.toUpperCase().trim()).toSet();
+    final jobQuals = job.qualificationsFound
+        .map((e) => e.toUpperCase().trim())
+        .toSet();
     if (jobQuals.isEmpty) return true;
 
     // 1. Direct overlap with candidate's eligible streams
@@ -107,7 +183,8 @@ class QualificationMatcher {
     }
 
     // 2. Semantic matching in text (Railway RRB NTPC, SSC CGL, etc.)
-    final combinedText = '${job.title} ${job.eligibilitySnippet} ${job.org}'.toUpperCase();
+    final combinedText = '${job.title} ${job.eligibilitySnippet} ${job.org}'
+        .toUpperCase();
     if (eligibleStreams.contains('B.SC')) {
       if (combinedText.contains('B.SC') ||
           combinedText.contains('SCIENCE') ||
@@ -130,11 +207,22 @@ class QualificationMatcher {
       }
     }
 
-    if (eligibleStreams.contains('10TH') && combinedText.contains('10TH')) return true;
-    if (eligibleStreams.contains('12TH / 10+2') && combinedText.contains('12TH')) return true;
-    if (eligibleStreams.contains('B.ED') && combinedText.contains('B.ED')) return true;
-    if (eligibleStreams.contains('CTET') && combinedText.contains('CTET')) return true;
-    if (eligibleStreams.contains('ITI') && combinedText.contains('ITI')) return true;
+    if (eligibleStreams.contains('10TH') && combinedText.contains('10TH')) {
+      return true;
+    }
+    if (eligibleStreams.contains('12TH / 10+2') &&
+        combinedText.contains('12TH')) {
+      return true;
+    }
+    if (eligibleStreams.contains('B.ED') && combinedText.contains('B.ED')) {
+      return true;
+    }
+    if (eligibleStreams.contains('CTET') && combinedText.contains('CTET')) {
+      return true;
+    }
+    if (eligibleStreams.contains('ITI') && combinedText.contains('ITI')) {
+      return true;
+    }
 
     return false;
   }

@@ -9,12 +9,14 @@ class JobCard extends StatelessWidget {
   final JobPost job;
   final bool isSaved;
   final VoidCallback onToggleSave;
+  final EdgeInsetsGeometry? margin;
 
   const JobCard({
     super.key,
     required this.job,
     required this.isSaved,
     required this.onToggleSave,
+    this.margin,
   });
 
   Widget _buildQualificationTag(String rawQual, AppPalette palette) {
@@ -112,7 +114,7 @@ class JobCard extends StatelessWidget {
       onTap: () => _openDetails(context),
       scaleFactor: 0.975,
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
+        margin: margin ?? const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
         decoration: palette.glassDecoration(
           radius: 18,
           customBorder: isSaved ? palette.accentPrimary : null,
