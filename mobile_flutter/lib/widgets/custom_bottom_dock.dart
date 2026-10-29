@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import 'motion_spells.dart';
 
 class CustomBottomDock extends StatelessWidget {
   final int currentIndex;
@@ -17,13 +18,14 @@ class CustomBottomDock extends StatelessWidget {
 
     return Container(
       margin: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-      height: 64,
+      height: 68,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: palette.glassDecoration(
-        radius: 32,
+        radius: 34,
         glow: true,
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _buildItem(
             icon: Icons.home_rounded,
@@ -65,32 +67,79 @@ class CustomBottomDock extends StatelessWidget {
     required AppPalette palette,
     required VoidCallback onTap,
   }) {
-    final selectedColor = palette.isDark ? const Color(0xFFF3EEF8) : const Color(0xFF17151C);
-    final unselectedColor = palette.textSecondary;
+    final activeColor = palette.accentPrimary;
+    final inactiveColor = palette.textSecondary;
 
-    return InkWell(
+    return TactilePress(
+      scaleFactor: 0.92,
       onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+        padding: EdgeInsets.symmetric(
+          horizontal: isSelected ? 16 : 12,
+          vertical: 5,
+        ),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? (palette.isDark
+                  ? activeColor.withValues(alpha: 0.20)
+                  : activeColor.withValues(alpha: 0.12))
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            color: isSelected
+                ? activeColor.withValues(alpha: palette.isDark ? 0.60 : 0.40)
+                : Colors.transparent,
+            width: 1.2,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: activeColor.withValues(alpha: palette.isDark ? 0.35 : 0.18),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
               icon,
-              size: 22,
-              color: isSelected ? selectedColor : unselectedColor,
+              size: isSelected ? 22 : 20,
+              color: isSelected ? activeColor : inactiveColor,
             ),
-            const SizedBox(height: 3),
+            const SizedBox(height: 2),
             Text(
               label,
               style: TextStyle(
                 fontSize: 10.5,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                color: isSelected ? selectedColor : unselectedColor,
+                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
+                color: isSelected ? activeColor : inactiveColor,
+                letterSpacing: isSelected ? -0.1 : 0.0,
               ),
             ),
+            if (isSelected) ...[
+              const SizedBox(height: 3),
+              Container(
+                width: 12,
+                height: 2.5,
+                decoration: BoxDecoration(
+                  color: activeColor,
+                  borderRadius: BorderRadius.circular(2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: activeColor.withValues(alpha: 0.8),
+                      blurRadius: 4,
+                      spreadRadius: 0.5,
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       ),

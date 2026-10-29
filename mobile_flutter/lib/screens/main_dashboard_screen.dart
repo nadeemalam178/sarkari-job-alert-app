@@ -9,13 +9,31 @@ import '../services/storage_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/qualification_matcher.dart';
 import '../widgets/custom_bottom_dock.dart';
-import '../widgets/dashboard_grid_card.dart';
 import '../widgets/hero_metric_card.dart';
 import '../widgets/job_card.dart';
 import '../widgets/motion_spells.dart';
 import '../widgets/portal_filter_bar.dart';
+import '../widgets/qualification_picker_sheet.dart';
 import 'auth_screen.dart';
 import 'profile_screen.dart';
+
+class SectorHub {
+  final String id;
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color accentColor;
+  final List<String> keywords;
+
+  const SectorHub({
+    required this.id,
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.accentColor,
+    required this.keywords,
+  });
+}
 
 class MainDashboardScreen extends StatefulWidget {
   final ValueChanged<ThemeMode> onThemeChanged;
@@ -36,7 +54,8 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
   bool _isLoading = false;
   bool _isPullRefreshing = false;
   bool _bannerDismissed = false;
-  bool _isBarsVisible = true; // Controls header & footer visibility on scroll
+  bool _isBarsVisible = true;
+  String? _expandedSectorId;
 
   List<JobPost> _allJobs = [];
   List<String> _selectedQualifications = ['B.SC', 'GRADUATE', '12TH / 10+2'];
@@ -44,10 +63,69 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
   List<Qualification> _masterQualifications = [];
   String _candidateName = 'Candidate';
 
-  // Explore tab filters (In-memory, instant)
+  // Explore tab filters
   String _selectedSource = 'All';
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
+
+  static const List<SectorHub> _sectors = [
+    SectorHub(
+      id: 'railways',
+      title: 'Railways (RRB)',
+      subtitle: 'RRB NTPC, Technician, Station Master & Group D',
+      icon: Icons.train_rounded,
+      accentColor: Color(0xFF38BDF8),
+      keywords: ['RRB', 'RAILWAY', 'NTPC', 'TECHNICIAN', 'LOCO', 'STATION MASTER', 'GROUP D'],
+    ),
+    SectorHub(
+      id: 'banking',
+      title: 'Banking & Financial Services',
+      subtitle: 'Bank PO, Clerk, RBI Assistant, NABARD & PSBs',
+      icon: Icons.account_balance_rounded,
+      accentColor: Color(0xFF10B981),
+      keywords: ['BANK', 'RBI', 'IBPS', 'SBI', 'NABARD', 'FINANCE', 'ACCOUNTANT', 'CLERK'],
+    ),
+    SectorHub(
+      id: 'teaching',
+      title: 'Teaching & Education',
+      subtitle: 'BPSC TRE, UPESSC, CTET, STET & College Lecturers',
+      icon: Icons.school_rounded,
+      accentColor: Color(0xFF2DD4BF),
+      keywords: ['TEACH', 'TET', 'B.ED', 'CTET', 'PROFESSOR', 'BPSC TRE', 'UPESSC', 'LECTURER', 'BLET', 'LIBRARY'],
+    ),
+    SectorHub(
+      id: 'upsc_ssc',
+      title: 'Central & State Commissions',
+      subtitle: 'UPSC Civil Services, SSC CGL, CHSL, MTS & State PSCs',
+      icon: Icons.assured_workload_rounded,
+      accentColor: Color(0xFFA78BFA),
+      keywords: ['UPSC', 'SSC', 'CGL', 'CHSL', 'CIVIL SERVICES', 'COMMISSION', 'MTS', 'PSC', 'JUDICIAL'],
+    ),
+    SectorHub(
+      id: 'defence_police',
+      title: 'Defence & Police Forces',
+      subtitle: 'Army, Navy, ITBP, CRPF, BSF & State Police SI/Constable',
+      icon: Icons.shield_rounded,
+      accentColor: Color(0xFFF87171),
+      keywords: ['POLICE', 'DEFENCE', 'ARMY', 'NAVY', 'AIR FORCE', 'CRPF', 'ITBP', 'BSF', 'CONSTABLE', 'SI', 'SPORTS QUOTA'],
+    ),
+    SectorHub(
+      id: 'technical_psu',
+      title: 'Technical, PSU & Engineering',
+      subtitle: 'BDL Bhanur, ISRO, IREL, NPCC, Engineers & ITI Trades',
+      icon: Icons.precision_manufacturing_rounded,
+      accentColor: Color(0xFFFB923C),
+      keywords: ['ENGINEER', 'TECHNICAL', 'PSU', 'ISRO', 'BDL', 'IREL', 'NPCC', 'B.TECH', 'DIPLOMA', 'ITI', 'TRADESMAN'],
+    ),
+    SectorHub(
+      id: 'medical_health',
+      title: 'Medical & Healthcare Services',
+      subtitle: 'Medical Officers, Pharmacists, GNM Nursing & Staff',
+      icon: Icons.local_hospital_rounded,
+      accentColor: Color(0xFFF472B6),
+      keywords: ['MEDICAL', 'HEALTH', 'HOSPITAL', 'DOCTOR', 'NURSE', 'PHARMACIST', 'CMO', 'RAEBARELI'],
+    ),
+  ];
 
   @override
   void initState() {
@@ -61,7 +139,6 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     super.dispose();
   }
 
-  /// Instant 0ms cache load, followed by silent background sync
   Future<void> _initialFastLoad() async {
     final cachedJobs = await StorageService.getCachedJobs();
     final quals = await StorageService.getSelectedQualifications();
@@ -105,7 +182,6 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     }
   }
 
-  /// Pull-to-refresh trigger: Shows top pull animation and refreshes jobs
   Future<void> _handlePullRefresh() async {
     if (_isPullRefreshing) return;
     setState(() => _isPullRefreshing = true);
@@ -143,6 +219,20 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
       _currentTab = 3;
       _isBarsVisible = true;
     });
+  }
+
+  void _openQualificationPicker() {
+    QualificationPickerSheet.show(
+      context,
+      allQualifications: _masterQualifications.isNotEmpty
+          ? _masterQualifications
+          : Qualification.defaultMasterList,
+      initialSelected: _selectedQualifications,
+      onSaved: (newSelected) async {
+        setState(() => _selectedQualifications = newSelected);
+        await StorageService.setSelectedQualifications(newSelected);
+      },
+    );
   }
 
   void _openProfile() async {
@@ -183,15 +273,12 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     }
   }
 
-  // --- Home Tab: Matched recommendations based on candidate streams ---
   List<JobPost> _getMatchedJobs() {
     return _allJobs.where((job) {
       return QualificationMatcher.isJobEligible(job, _selectedQualifications);
     }).toList();
   }
 
-  // --- Explore Tab: Universal Large Pool of ALL Jobs across all portals ---
-  // Deduplicated and NOT choice-specific!
   List<JobPost> _getFilteredExploreJobs() {
     var list = _allJobs;
 
@@ -227,16 +314,12 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
         onNotification: (notification) {
           if (notification is ScrollUpdateNotification) {
             final delta = notification.scrollDelta ?? 0;
-            // Scrolling down -> hide bars smoothly to give 100% space to middle UI
             if (delta > 8.0) {
               if (_isBarsVisible) setState(() => _isBarsVisible = false);
-            }
-            // Scrolling up -> reveal bars smoothly
-            else if (delta < -8.0) {
+            } else if (delta < -8.0) {
               if (!_isBarsVisible) setState(() => _isBarsVisible = true);
             }
           }
-          // When user scrolls to top of view, guarantee bars are visible
           if (notification.metrics.pixels <= 10.0) {
             if (!_isBarsVisible) setState(() => _isBarsVisible = true);
           }
@@ -244,18 +327,30 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
         },
         child: Stack(
           children: [
-            // 1. Content Views Layer (Constant fixed viewport, zero layout thrashing)
+            // 1. Content Views Layer with AnimatedSwitcher (Fade + subtle slide transition)
             Positioned.fill(
               child: _isLoading && _allJobs.isEmpty
                   ? Center(child: CircularProgressIndicator(color: palette.accentPrimary))
-                  : IndexedStack(
-                      index: _currentTab,
-                      children: [
-                        _buildDashboardView(palette, topPadding, bottomPadding),
-                        _buildExploreDirectoryView(palette, topPadding, bottomPadding),
-                        _buildSavedView(palette, topPadding, bottomPadding),
-                        _buildAlertsView(palette, topPadding, bottomPadding),
-                      ],
+                  : AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 240),
+                      switchInCurve: Curves.easeOutCubic,
+                      switchOutCurve: Curves.easeInCubic,
+                      transitionBuilder: (child, animation) {
+                        return FadeTransition(
+                          opacity: animation,
+                          child: SlideTransition(
+                            position: Tween<Offset>(
+                              begin: const Offset(0.0, 0.03),
+                              end: Offset.zero,
+                            ).animate(animation),
+                            child: child,
+                          ),
+                        );
+                      },
+                      child: KeyedSubtree(
+                        key: ValueKey<int>(_currentTab),
+                        child: _buildCurrentTabContent(palette, topPadding, bottomPadding),
+                      ),
                     ),
             ),
 
@@ -332,6 +427,21 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     );
   }
 
+  Widget _buildCurrentTabContent(AppPalette palette, double topPadding, double bottomPadding) {
+    switch (_currentTab) {
+      case 0:
+        return _buildDashboardView(palette, topPadding, bottomPadding);
+      case 1:
+        return _buildExploreDirectoryView(palette, topPadding, bottomPadding);
+      case 2:
+        return _buildSavedView(palette, topPadding, bottomPadding);
+      case 3:
+        return _buildAlertsView(palette, topPadding, bottomPadding);
+      default:
+        return _buildDashboardView(palette, topPadding, bottomPadding);
+    }
+  }
+
   // --- Top Header with Tactile Avatar and Status ---
   Widget _buildTopHeader(AppPalette palette) {
     return Padding(
@@ -345,8 +455,8 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
               Row(
                 children: [
                   Container(
-                    width: 34,
-                    height: 34,
+                    width: 36,
+                    height: 36,
                     decoration: BoxDecoration(
                       color: palette.surfaceGlassHigh,
                       borderRadius: BorderRadius.circular(10),
@@ -355,7 +465,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                     child: const Center(
                       child: Icon(
                         Icons.notifications_active_rounded,
-                        size: 19,
+                        size: 20,
                         color: Color(0xFFFBBF24),
                       ),
                     ),
@@ -414,7 +524,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
           ),
           const SizedBox(height: 10),
 
-          // Greeting & Active Degree Status
+          // Greeting & Active Qualifications Pill with Quick Change
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -432,7 +542,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
 
               // Active Qualification Pill with TactilePress
               TactilePress(
-                onTap: _openProfile,
+                onTap: _openQualificationPicker,
                 scaleFactor: 0.94,
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -461,6 +571,19 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                           color: palette.textPrimary,
                         ),
                       ),
+                      if (_selectedQualifications.length > 1) ...[
+                        const SizedBox(width: 3),
+                        Text(
+                          '+${_selectedQualifications.length - 1}',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: palette.accentPrimary,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(width: 3),
+                      Icon(Icons.tune_rounded, size: 12, color: palette.textSecondary),
                     ],
                   ),
                 ),
@@ -512,10 +635,9 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     );
   }
 
-  // --- TAB 0: HOME COMMAND CENTER (Pull-to-refresh enabled) ---
+  // --- TAB 0: HOME COMMAND CENTER (Sector Accordion Hub) ---
   Widget _buildDashboardView(AppPalette palette, double topInset, double bottomInset) {
     final matchedJobs = _getMatchedJobs();
-    final topJobs = matchedJobs.isNotEmpty ? matchedJobs : _allJobs;
 
     return RefreshIndicator(
       onRefresh: _handlePullRefresh,
@@ -526,40 +648,24 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // 1. Hero Metric Card
             HeroMetricCard(
               totalJobs: _allJobs.length,
               matchedCount: matchedJobs.length,
               onTap: () => setState(() => _currentTab = 1),
             ),
 
-            // Sector Quick Access Pills
+            // 2. Section Header: Recruitment Sectors
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 6),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    _buildSectorChip('🚆 Railways (RRB)', 'RRB', palette),
-                    _buildSectorChip('🔬 Science & B.Sc', 'SCIENCE', palette),
-                    _buildSectorChip('🏛 Central (UPSC/SSC)', 'UPSC', palette),
-                    _buildSectorChip('💰 Banking', 'BANK', palette),
-                    _buildSectorChip('👮 Defence / Police', 'POLICE', palette),
-                  ],
-                ),
-              ),
-            ),
-
-            // Section Header: "Recommended For You"
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 10),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Matched for ${_selectedQualifications.first}',
+                    'Explore by Sector Subsections',
                     style: TextStyle(
                       fontSize: 14.5,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w800,
                       color: palette.textPrimary,
                       letterSpacing: -0.2,
                     ),
@@ -569,18 +675,18 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                     child: Row(
                       children: [
                         Text(
-                          'View all',
+                          'View all ${_allJobs.length}',
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: palette.textSecondary,
+                            color: palette.accentPrimary,
                           ),
                         ),
                         const SizedBox(width: 2),
                         Icon(
                           Icons.arrow_forward_rounded,
                           size: 13,
-                          color: palette.textSecondary,
+                          color: palette.accentPrimary,
                         ),
                       ],
                     ),
@@ -589,31 +695,13 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
               ),
             ),
 
-            // 2x2 Grid of Dashboard Bento Tiles with Staggered Entrance
+            // 3. Clean Accordion Sector Cards (Uncluttered Home experience)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                  childAspectRatio: 0.92,
-                ),
-                itemCount: topJobs.take(6).length,
-                itemBuilder: (context, index) {
-                  final job = topJobs[index];
-                  final isSaved = _savedJobIds.contains(job.id);
-                  return StaggeredFadeSlide(
-                    index: index,
-                    child: DashboardGridCard(
-                      job: job,
-                      isSaved: isSaved,
-                      onToggleSave: () => _toggleSaveJob(job.id),
-                    ),
-                  );
-                },
+              child: Column(
+                children: _sectors.map((sec) {
+                  return _buildSectorAccordionCard(sec, palette);
+                }).toList(),
               ),
             ),
           ],
@@ -622,34 +710,190 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     );
   }
 
-  Widget _buildSectorChip(String label, String query, AppPalette palette) {
+  // Clean, uncluttered Sector Accordion Card
+  Widget _buildSectorAccordionCard(SectorHub sector, AppPalette palette) {
+    final sectorJobs = _allJobs.where((j) {
+      final text = '${j.title} ${j.org} ${j.eligibilitySnippet}'.toUpperCase();
+      return sector.keywords.any((k) => text.contains(k));
+    }).toList();
+
+    final isExpanded = _expandedSectorId == sector.id;
+
     return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: TactilePress(
-        scaleFactor: 0.94,
-        onTap: () {
-          setState(() {
-            _searchController.text = query;
-            _searchQuery = query;
-            _currentTab = 1;
-            _isBarsVisible = true;
-          });
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
-          decoration: BoxDecoration(
-            color: palette.surfaceGlassHigh,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: palette.cardBorder, width: 0.8),
+      padding: const EdgeInsets.only(bottom: 10),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 240),
+        curve: Curves.easeOutCubic,
+        decoration: BoxDecoration(
+          color: isExpanded ? palette.surfaceGlassHigh : palette.surfaceGlass,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: isExpanded ? sector.accentColor.withValues(alpha: 0.6) : palette.cardBorder,
+            width: isExpanded ? 1.2 : 0.8,
           ),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 11.5,
-              fontWeight: FontWeight.w600,
-              color: palette.textPrimary,
+          boxShadow: isExpanded
+              ? [
+                  BoxShadow(
+                    color: sector.accentColor.withValues(alpha: palette.isDark ? 0.20 : 0.10),
+                    blurRadius: 14,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : null,
+        ),
+        child: Column(
+          children: [
+            // Header Bar
+            TactilePress(
+              scaleFactor: 0.98,
+              onTap: () {
+                setState(() {
+                  _expandedSectorId = isExpanded ? null : sector.id;
+                });
+              },
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: sector.accentColor.withValues(alpha: palette.isDark ? 0.20 : 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: sector.accentColor.withValues(alpha: 0.4),
+                          width: 1,
+                        ),
+                      ),
+                      child: Icon(sector.icon, color: sector.accentColor, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            sector.title,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: palette.textPrimary,
+                              letterSpacing: -0.2,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            sector.subtitle,
+                            style: TextStyle(fontSize: 10.5, color: palette.textSecondary),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: sector.accentColor.withValues(alpha: palette.isDark ? 0.22 : 0.12),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: sector.accentColor.withValues(alpha: 0.5),
+                          width: 0.8,
+                        ),
+                      ),
+                      child: Text(
+                        '${sectorJobs.length} Jobs',
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
+                          color: sector.accentColor,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    AnimatedRotation(
+                      turns: isExpanded ? 0.5 : 0.0,
+                      duration: const Duration(milliseconds: 240),
+                      curve: Curves.easeOutCubic,
+                      child: Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        color: isExpanded ? sector.accentColor : palette.textSecondary,
+                        size: 22,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ),
+
+            // Collapsible Accordion Subsection Body
+            AnimatedCrossFade(
+              duration: const Duration(milliseconds: 260),
+              firstCurve: Curves.easeOutCubic,
+              secondCurve: Curves.easeOutCubic,
+              crossFadeState: isExpanded ? CrossFadeState.showFirst : CrossFadeState.showSecond,
+              firstChild: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+                child: Column(
+                  children: [
+                    Divider(height: 1, color: palette.cardBorder),
+                    const SizedBox(height: 10),
+                    if (sectorJobs.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Text(
+                          'No vacancies found in this sector right now.',
+                          style: TextStyle(fontSize: 12, color: palette.textSecondary),
+                        ),
+                      )
+                    else
+                      ...sectorJobs.take(4).map((j) {
+                        final isSaved = _savedJobIds.contains(j.id);
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: JobCard(
+                            job: j,
+                            isSaved: isSaved,
+                            onToggleSave: () => _toggleSaveJob(j.id),
+                          ),
+                        );
+                      }),
+                    if (sectorJobs.length > 4)
+                      InkWell(
+                        onTap: () {
+                          setState(() {
+                            _searchController.text = sector.keywords.first;
+                            _searchQuery = sector.keywords.first;
+                            _currentTab = 1;
+                          });
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                'View all ${sectorJobs.length} in Explore',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: sector.accentColor,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Icon(Icons.arrow_forward_rounded, size: 14, color: sector.accentColor),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              secondChild: const SizedBox.shrink(),
+            ),
+          ],
         ),
       ),
     );
@@ -694,7 +938,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                           : null,
                       isDense: true,
                       filled: true,
-                      fillColor: palette.isDark ? const Color(0xFF17151C) : Colors.white,
+                      fillColor: palette.isDark ? const Color(0xFF16131D) : Colors.white,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),

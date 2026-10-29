@@ -1,4 +1,4 @@
-# 🏛️ Sarkari Job Alert Mobile App (v2.2.0)
+# 🏛️ Sarkari Job Alert Mobile App (v2.3.0)
 
 [![Flutter](https://img.shields.io/badge/Flutter-3.13+-02569B?logo=flutter&logoColor=white)](https://flutter.dev)
 [![Dart](https://img.shields.io/badge/Dart-3.0+-0175C2?logo=dart&logoColor=white)](https://dart.dev)
@@ -9,7 +9,7 @@ An ultra-fast, cross-platform Flutter application and Python automation suite fo
 
 ---
 
-## ✨ Key Features (v2.2.0)
+## ✨ Key Features (v2.3.0)
 
 ### 🌐 Complete `sarkariresult.com.cm/latest-jobs/` Integration
 - **Full Page Scraper**: High-concurrency (`ThreadPoolExecutor`) engine that extracts every single active posting from `https://sarkariresult.com.cm/latest-jobs/` with zero truncation.
@@ -33,16 +33,16 @@ An ultra-fast, cross-platform Flutter application and Python automation suite fo
 
 ---
 
-## 📥 Download Standalone Android APKs (v2.2.0)
+## 📥 Download Standalone Android APKs (v2.3.0)
 
-Direct download links from [GitHub Releases v2.2.0](https://github.com/nadeemalam178/sarkari-job-alert-app/releases/tag/v2.2.0):
+Direct download links from [GitHub Releases v2.3.0](https://github.com/nadeemalam178/sarkari-job-alert-app/releases/tag/v2.3.0):
 
 | Architecture | APK File | Size | Recommended Devices |
 |---|---|---|---|
-| **ARM64-v8a** (Most Popular) | [Download ARM64 APK](https://github.com/nadeemalam178/sarkari-job-alert-app/releases/download/v2.2.0/SarkariJobAlert-v2.2.0-arm64-v8a.apk) | **~18.0 MB** | Modern 64-bit phones (Pixel, OnePlus, Samsung, Xiaomi, Realme, etc.) |
-| **ARMv7a** (Legacy 32-bit) | [Download ARMv7a APK](https://github.com/nadeemalam178/sarkari-job-alert-app/releases/download/v2.2.0/SarkariJobAlert-v2.2.0-armeabi-v7a.apk) | **~15.5 MB** | Older 32-bit Android smartphones |
-| **x86_64** (Emulators) | [Download x86_64 APK](https://github.com/nadeemalam178/sarkari-job-alert-app/releases/download/v2.2.0/SarkariJobAlert-v2.2.0-x86_64.apk) | **~19.4 MB** | Android Emulators, Windows Subsystem for Android, Chromebooks |
-| **Universal** (All CPUs) | [Download Universal APK](https://github.com/nadeemalam178/sarkari-job-alert-app/releases/download/v2.2.0/SarkariJobAlert-v2.2.0-universal.apk) | ~51.1 MB | Compatible with all Android devices |
+| **ARM64-v8a** (Most Popular) | [Download ARM64 APK](https://github.com/nadeemalam178/sarkari-job-alert-app/releases/download/v2.3.0/SarkariJobAlert-v2.3.0-arm64-v8a.apk) | **~18.1 MB** | Modern 64-bit phones (Pixel, OnePlus, Samsung, Xiaomi, Realme, etc.) |
+| **ARMv7a** (Legacy 32-bit) | [Download ARMv7a APK](https://github.com/nadeemalam178/sarkari-job-alert-app/releases/download/v2.3.0/SarkariJobAlert-v2.3.0-armeabi-v7a.apk) | **~15.6 MB** | Older 32-bit Android smartphones |
+| **x86_64** (Emulators) | [Download x86_64 APK](https://github.com/nadeemalam178/sarkari-job-alert-app/releases/download/v2.3.0/SarkariJobAlert-v2.3.0-x86_64.apk) | **~19.5 MB** | Android Emulators, Windows Subsystem for Android, Chromebooks |
+| **Universal** (All CPUs) | [Download Universal APK](https://github.com/nadeemalam178/sarkari-job-alert-app/releases/download/v2.3.0/SarkariJobAlert-v2.3.0-universal.apk) | ~51.3 MB | Compatible with all Android devices |
 
 ### Installation Instructions
 1. Download the architecture APK for your device (or Universal if unsure).
@@ -108,7 +108,7 @@ sarkari-job-alert-app/
 │   │   ├── theme/                   # Glassmorphism design & aubergine-slate palette
 │   │   ├── utils/                   # Hierarchical qualification matching logic
 │   │   └── widgets/                 # Tactile cards, docks, sheets, filters
-│   └── pubspec.yaml                 # v2.2.0 dependencies & assets
+│   └── pubspec.yaml                 # v2.3.0 dependencies & assets
 ├── static/                          # Companion Web Dashboard (PWA)
 ├── scraper.py                       # High-concurrency scraper for sarkariresult.com.cm/latest-jobs/
 ├── database.py                      # SQLite storage & user preferences engine

@@ -1,6 +1,10 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class OtaUpdateInfo {
@@ -21,9 +25,12 @@ class OtaUpdateInfo {
   });
 }
 
+typedef DownloadProgressCallback = void Function(int receivedBytes, int totalBytes, double progress);
+
 class OtaUpdateService {
-  static const String currentVersion = '2.2.0';
+  static const String currentVersion = '2.3.0';
   static const String githubRepo = 'nadeemalam178/sarkari-job-alert-app';
+  static const MethodChannel _otaChannel = MethodChannel('com.sarkari.jobalert/ota');
 
   /// Check GitHub Releases API for over-the-air updates
   static Future<OtaUpdateInfo?> checkForUpdate() async {
@@ -40,13 +47,25 @@ class OtaUpdateService {
         String downloadUrl = data['html_url'] ?? 'https://github.com/$githubRepo/releases/latest';
         int sizeBytes = 0;
 
-        // Find architecture-optimized or named release APK
+        // Find architecture-optimized or named release APK (prefer arm64-v8a for modern Android)
         for (final asset in assets) {
           final name = (asset['name'] as String? ?? '').toLowerCase();
-          if (name.contains('arm64') || name.contains('sarkarijobalert') || name.endsWith('.apk')) {
+          if (name.contains('arm64-v8a') || name.contains('arm64')) {
             downloadUrl = asset['browser_download_url'] ?? downloadUrl;
             sizeBytes = asset['size'] ?? 0;
             break;
+          }
+        }
+
+        // If arm64 was not found, search for any APK asset
+        if (sizeBytes == 0) {
+          for (final asset in assets) {
+            final name = (asset['name'] as String? ?? '').toLowerCase();
+            if (name.endsWith('.apk')) {
+              downloadUrl = asset['browser_download_url'] ?? downloadUrl;
+              sizeBytes = asset['size'] ?? 0;
+              break;
+            }
           }
         }
 
@@ -80,6 +99,75 @@ class OtaUpdateService {
     return false;
   }
 
+  /// In-app direct background stream downloader with live progress callbacks
+  static Future<File?> downloadApk(
+    String url, {
+    DownloadProgressCallback? onProgress,
+  }) async {
+    try {
+      final client = http.Client();
+      final request = http.Request('GET', Uri.parse(url));
+      final response = await client.send(request);
+
+      if (response.statusCode != 200 && response.statusCode != 302) {
+        debugPrint('Failed to download APK: status ${response.statusCode}');
+        return null;
+      }
+
+      // Handle redirect if any
+      Uri targetUri = Uri.parse(url);
+      if (response.isRedirect || response.statusCode == 302) {
+        final location = response.headers['location'];
+        if (location != null) targetUri = Uri.parse(location);
+      }
+
+      final streamRes = response.statusCode == 302
+          ? await client.send(http.Request('GET', targetUri))
+          : response;
+
+      final totalBytes = streamRes.contentLength ?? 0;
+      int receivedBytes = 0;
+
+      final tempDir = await getTemporaryDirectory();
+      final apkFile = File('${tempDir.path}/SarkariJobAlert-update.apk');
+      if (await apkFile.exists()) {
+        await apkFile.delete();
+      }
+
+      final sink = apkFile.openWrite();
+
+      await for (final chunk in streamRes.stream) {
+        sink.add(chunk);
+        receivedBytes += chunk.length;
+        if (totalBytes > 0 && onProgress != null) {
+          final progress = (receivedBytes / totalBytes).clamp(0.0, 1.0);
+          onProgress(receivedBytes, totalBytes, progress);
+        }
+      }
+
+      await sink.flush();
+      await sink.close();
+      client.close();
+
+      return apkFile;
+    } catch (e) {
+      debugPrint('Error downloading APK: $e');
+      return null;
+    }
+  }
+
+  /// Launch native Android package installer
+  static Future<bool> installApk(String filePath) async {
+    try {
+      final result = await _otaChannel.invokeMethod<bool>('installApk', {'filePath': filePath});
+      return result ?? false;
+    } catch (e) {
+      debugPrint('Native installApk error: $e');
+      return false;
+    }
+  }
+
+  /// Fallback external browser opener
   static Future<void> launchDownload(String url) async {
     final uri = Uri.parse(url);
     if (await canLaunchUrl(uri)) {

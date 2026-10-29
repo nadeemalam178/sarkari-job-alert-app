@@ -17,6 +17,73 @@ class JobCard extends StatelessWidget {
     required this.onToggleSave,
   });
 
+  Widget _buildQualificationTag(String rawQual, AppPalette palette) {
+    final q = rawQual.toUpperCase().trim();
+    Color bg;
+    Color border;
+    Color text;
+
+    if (q.contains('10TH') || q.contains('MATRIC')) {
+      bg = const Color(0x2210B981);
+      border = const Color(0x5510B981);
+      text = palette.isDark ? const Color(0xFF34D399) : const Color(0xFF059669);
+    } else if (q.contains('12TH') || q.contains('10+2') || q.contains('INTER')) {
+      bg = const Color(0x220284C7);
+      border = const Color(0x550284C7);
+      text = palette.isDark ? const Color(0xFF38BDF8) : const Color(0xFF0284C7);
+    } else if (q.contains('B.SC') || q.contains('SCIENCE')) {
+      bg = const Color(0x22F59E0B);
+      border = const Color(0x55F59E0B);
+      text = palette.isDark ? const Color(0xFFFBBF24) : const Color(0xFFD97706);
+    } else if (q.contains('GRADUATE') || q.contains('DEGREE') || q == 'BA' || q == 'B.COM' || q == 'BCA') {
+      bg = const Color(0x258B5CF6);
+      border = const Color(0x558B5CF6);
+      text = palette.isDark ? const Color(0xFFA78BFA) : const Color(0xFF7C3AED);
+    } else if (q.contains('B.TECH') || q.contains('ENGINEER') || q.contains('DIPLOMA')) {
+      bg = const Color(0x22F97316);
+      border = const Color(0x55F97316);
+      text = palette.isDark ? const Color(0xFFFB923C) : const Color(0xFFEA580C);
+    } else if (q.contains('B.ED') || q.contains('CTET') || q.contains('TEACH') || q.contains('TET')) {
+      bg = const Color(0x2214B8A6);
+      border = const Color(0x5514B8A6);
+      text = palette.isDark ? const Color(0xFF2DD4BF) : const Color(0xFF0D9488);
+    } else if (q.contains('POST GRADUATE') || q.contains('MASTER') || q.contains('MCA') || q.contains('PH.D')) {
+      bg = const Color(0x22EC4899);
+      border = const Color(0x55EC4899);
+      text = palette.isDark ? const Color(0xFFF472B6) : const Color(0xFFDB2777);
+    } else if (q.contains('POLICE') || q.contains('DEFENCE') || q.contains('ARMY') || q.contains('CRPF') || q.contains('ITBP')) {
+      bg = const Color(0x22EF4444);
+      border = const Color(0x55EF4444);
+      text = palette.isDark ? const Color(0xFFF87171) : const Color(0xFFDC2626);
+    } else if (q.contains('ITI') || q.contains('CCC') || q.contains('TYPING') || q.contains('STENO')) {
+      bg = const Color(0x226366F1);
+      border = const Color(0x556366F1);
+      text = palette.isDark ? const Color(0xFF818CF8) : const Color(0xFF4F46E5);
+    } else {
+      bg = palette.surfaceGlassHigh;
+      border = palette.cardBorder;
+      text = palette.textSecondary;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7.5, vertical: 3),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: border, width: 0.9),
+      ),
+      child: Text(
+        rawQual,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          color: text,
+          letterSpacing: 0.1,
+        ),
+      ),
+    );
+  }
+
   void _openDetails(BuildContext context) {
     JobDetailsSheet.show(
       context,
@@ -186,31 +253,13 @@ class JobCard extends StatelessWidget {
                 const SizedBox(height: 8),
               ],
 
-              // Qualifications tags
+              // Qualifications tags with vibrant jewel colors
               if (job.qualificationsFound.isNotEmpty) ...[
                 Wrap(
-                  spacing: 5,
-                  runSpacing: 4,
+                  spacing: 6,
+                  runSpacing: 5,
                   children: job.qualificationsFound.take(4).map((q) {
-                    return Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
-                      decoration: BoxDecoration(
-                        color: palette.surfaceGlassHigh,
-                        borderRadius: BorderRadius.circular(5),
-                        border: Border.all(
-                          color: palette.cardBorder,
-                          width: 0.8,
-                        ),
-                      ),
-                      child: Text(
-                        q,
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: palette.textSecondary,
-                        ),
-                      ),
-                    );
+                    return _buildQualificationTag(q, palette);
                   }).toList(),
                 ),
                 const SizedBox(height: 10),

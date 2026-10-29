@@ -93,6 +93,169 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  void _startInAppDownload(OtaUpdateInfo updateInfo) {
+    final palette = AppPalette.of(context);
+    double progressValue = 0.0;
+    int downloadedBytes = 0;
+    int totalBytes = updateInfo.downloadSizeBytes;
+    bool isCompleted = false;
+    bool hasFailed = false;
+    String statusText = 'Connecting to GitHub Release asset...';
+    String? localApkPath;
+    StateSetter? dialogSetState;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          dialogSetState = setDialogState;
+          final progressPercent = (progressValue * 100).toInt();
+          final downloadedMb = (downloadedBytes / (1024 * 1024)).toStringAsFixed(1);
+          final totalMb = (totalBytes > 0 ? (totalBytes / (1024 * 1024)) : (updateInfo.downloadSizeBytes / (1024 * 1024))).toStringAsFixed(1);
+
+          return AlertDialog(
+            backgroundColor: palette.surfaceGlassHigh,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+            title: Row(
+              children: [
+                Icon(
+                  isCompleted
+                      ? Icons.check_circle_rounded
+                      : (hasFailed ? Icons.error_outline_rounded : Icons.cloud_download_rounded),
+                  color: isCompleted
+                      ? const Color(0xFF10B981)
+                      : (hasFailed ? const Color(0xFFEF4444) : palette.accentPrimary),
+                  size: 26,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    isCompleted
+                        ? 'Update Ready'
+                        : (hasFailed ? 'Download Failed' : 'Downloading v${updateInfo.latestVersion}'),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: palette.textPrimary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  statusText,
+                  style: TextStyle(fontSize: 12.5, color: palette.textSecondary),
+                ),
+                const SizedBox(height: 16),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: LinearProgressIndicator(
+                    value: isCompleted ? 1.0 : (progressValue > 0 ? progressValue : null),
+                    minHeight: 8,
+                    backgroundColor: palette.cardBorder,
+                    color: isCompleted ? const Color(0xFF10B981) : palette.accentPrimary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      '$downloadedMb MB / $totalMb MB',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: palette.textSecondary,
+                      ),
+                    ),
+                    Text(
+                      '$progressPercent%',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: isCompleted ? const Color(0xFF10B981) : palette.accentPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            actions: [
+              if (!isCompleted && !hasFailed)
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text('Cancel', style: TextStyle(color: palette.textSecondary)),
+                ),
+              if (hasFailed) ...[
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text('Close', style: TextStyle(color: palette.textSecondary)),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    OtaUpdateService.launchDownload(updateInfo.downloadUrl);
+                  },
+                  style: FilledButton.styleFrom(backgroundColor: palette.accentPrimary),
+                  child: const Text('Open in Browser'),
+                ),
+              ],
+              if (isCompleted && localApkPath != null)
+                FilledButton.icon(
+                  onPressed: () async {
+                    await OtaUpdateService.installApk(localApkPath!);
+                  },
+                  icon: const Icon(Icons.install_mobile_rounded, size: 16),
+                  label: const Text('Install Now'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF10B981),
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+            ],
+          );
+        },
+      ),
+    );
+
+    // Stream download in background
+    OtaUpdateService.downloadApk(
+      updateInfo.downloadUrl,
+      onProgress: (received, total, progress) {
+        if (!mounted) return;
+        dialogSetState?.call(() {
+          downloadedBytes = received;
+          if (total > 0) totalBytes = total;
+          progressValue = progress;
+          statusText = 'Streaming update package (${(progress * 100).toInt()}%)...';
+        });
+      },
+    ).then((file) async {
+      if (file != null && await file.exists()) {
+        localApkPath = file.path;
+        if (mounted) {
+          dialogSetState?.call(() {
+            isCompleted = true;
+            statusText = 'Downloaded successfully. Opening package installer...';
+          });
+        }
+        await OtaUpdateService.installApk(file.path);
+      } else {
+        if (mounted) {
+          dialogSetState?.call(() {
+            hasFailed = true;
+            statusText = 'Download interrupted. You can download directly via browser.';
+          });
+        }
+      }
+    });
+  }
+
   Future<void> _checkOtaUpdate() async {
     setState(() => _isCheckingOta = true);
     final palette = AppPalette.of(context);
@@ -131,23 +294,67 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 onPressed: () => Navigator.pop(ctx),
                 child: Text('Later', style: TextStyle(color: palette.textSecondary)),
               ),
-              FilledButton(
+              FilledButton.icon(
                 onPressed: () {
                   Navigator.pop(ctx);
-                  OtaUpdateService.launchDownload(updateInfo.downloadUrl);
+                  _startInAppDownload(updateInfo);
                 },
+                icon: const Icon(Icons.download_rounded, size: 16),
+                label: const Text('Download & Install'),
                 style: FilledButton.styleFrom(
-                  backgroundColor: palette.isDark ? const Color(0xFF45404F) : const Color(0xFF292531),
+                  backgroundColor: palette.accentPrimary,
+                  foregroundColor: Colors.white,
                 ),
-                child: const Text('Download APK'),
+              ),
+            ],
+          ),
+        );
+      } else if (updateInfo != null) {
+        final sizeMb = (updateInfo.downloadSizeBytes / (1024 * 1024)).toStringAsFixed(1);
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: palette.surfaceGlassHigh,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Row(
+              children: [
+                const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 24),
+                const SizedBox(width: 10),
+                Text('Up to Date (v${OtaUpdateService.currentVersion})', style: TextStyle(fontSize: 16, color: palette.textPrimary, fontWeight: FontWeight.w700)),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('You are currently on the latest production release.', style: TextStyle(fontSize: 13, color: palette.textPrimary)),
+                const SizedBox(height: 8),
+                Text('Build: v${OtaUpdateService.currentVersion} • Size: $sizeMb MB', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: palette.accentPrimary)),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text('OK', style: TextStyle(color: palette.textSecondary)),
+              ),
+              OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _startInAppDownload(updateInfo);
+                },
+                icon: const Icon(Icons.refresh_rounded, size: 14),
+                label: const Text('Reinstall APK'),
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: palette.cardBorder),
+                ),
               ),
             ],
           ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('App is up to date (v2.0.0) • OTA Engine Active'),
+          SnackBar(
+            content: Text('App is up to date (v${OtaUpdateService.currentVersion}) • OTA Engine Active'),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -157,7 +364,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  void _showEditProfileDialog() {
+    void _showEditProfileDialog() {
     final nameCtrl = TextEditingController(text: _profileData['name'] ?? '');
     final emailCtrl = TextEditingController(text: _profileData['email'] ?? '');
     final phoneCtrl = TextEditingController(text: _profileData['phone'] ?? '');
@@ -713,7 +920,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: palette.textPrimary),
             ),
             subtitle: Text(
-              'Current version: v2.0.0 (Release)',
+              'Current version: v${OtaUpdateService.currentVersion} (Release)',
               style: TextStyle(fontSize: 11, color: palette.textSecondary),
             ),
             trailing: _isCheckingOta
@@ -800,7 +1007,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Column(
       children: [
         Text(
-          'Sarkari Job Alert • v2.0.0 (OTA Enabled)',
+          'Sarkari Job Alert • v${OtaUpdateService.currentVersion} (OTA Enabled)',
           style: TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.w600,
@@ -809,7 +1016,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         const SizedBox(height: 3),
         Text(
-          'Direct Live Synchronization across 3 Portals',
+          'Direct Live Synchronization across 6 Portals',
           style: TextStyle(
             fontSize: 10,
             color: palette.textSecondary.withValues(alpha: 0.7),

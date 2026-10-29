@@ -1,20 +1,22 @@
 import 'package:flutter/material.dart';
 
-/// App Theme & Color Palette based on custom slate-plum / lavender palette:
-/// #17151C - Deep Obsidian Plum Night (Darkest)
-/// #292531 - Charcoal Violet Surface
-/// #45404F - Slate Heather Plum
-/// #716879 - Muted Heather Mauve
-/// #AAA2B3 - Soft Lilac Heather
-/// #E2DDE7 - Luminous Lavender Mist (Lightest)
+/// App Theme & Refined Sovereign Aubergine-Iris Palette:
+/// #100E17 - Deep Obsidian Plum Night (Darkest)
+/// #1E1A27 - Frosted Charcoal Iris Surface
+/// #2C2538 - Slate Heather Surface High
+/// #7A6F87 - Muted Heather Slate
+/// #9D6EFA - Vibrant Luminous Royal Iris / Violet (Hero Brand Accent)
+/// #A78BFA - Radiant Electric Lavender
+/// #F7F5FA - Crisp Pearl Lavender Mist (Lightest)
 class AppTheme {
-  static const Color darkBg = Color(0xFF17151C);
-  static const Color darkSurface = Color(0xFF292531);
-  static const Color darkElevated = Color(0xFF45404F);
-  static const Color slateMauve = Color(0xFF716879);
-  static const Color lilacHeather = Color(0xFFAAA2B3);
-  static const Color lightBg = Color(0xFFE2DDE7);
-  static const Color lightElevatedBg = Color(0xFFF1EDF5);
+  static const Color darkBg = Color(0xFF100E17);
+  static const Color darkSurface = Color(0xFF1E1A27);
+  static const Color darkElevated = Color(0xFF2C2538);
+  static const Color slateMauve = Color(0xFF7A6F87);
+  static const Color lilacHeather = Color(0xFFA78BFA);
+  static const Color royalIris = Color(0xFF9D6EFA);
+  static const Color lightBg = Color(0xFFF7F5FA);
+  static const Color lightElevatedBg = Color(0xFFEFEBF5);
 
   static ThemeData get darkTheme {
     return ThemeData(
@@ -22,16 +24,16 @@ class AppTheme {
       brightness: Brightness.dark,
       scaffoldBackgroundColor: darkBg,
       colorScheme: const ColorScheme.dark(
-        primary: lilacHeather,
-        secondary: slateMauve,
+        primary: royalIris,
+        secondary: lilacHeather,
         surface: darkSurface,
-        onSurface: Color(0xFFF3EEF8),
-        outline: Color(0xFF45404F),
+        onSurface: Color(0xFFFDFCFE),
+        outline: Color(0xFF382F47),
       ),
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        foregroundColor: Color(0xFFF3EEF8),
+        foregroundColor: Color(0xFFFDFCFE),
       ),
     );
   }
@@ -40,18 +42,18 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
-      scaffoldBackgroundColor: lightElevatedBg,
+      scaffoldBackgroundColor: lightBg,
       colorScheme: const ColorScheme.light(
-        primary: darkSurface,
-        secondary: slateMauve,
+        primary: Color(0xFF7C3AED),
+        secondary: Color(0xFF6D28D9),
         surface: Colors.white,
-        onSurface: darkBg,
-        outline: lilacHeather,
+        onSurface: Color(0xFF16131D),
+        outline: Color(0xFFE4DFEA),
       ),
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        foregroundColor: darkBg,
+        foregroundColor: Color(0xFF16131D),
       ),
     );
   }
@@ -99,20 +101,20 @@ class AppPalette {
     if (isDark) {
       return const AppPalette(
         isDark: true,
-        background: Color(0xFF17151C), // #17151C
-        surfaceGlass: Color(0xEE292531), // #292531 with frosted opacity
-        surfaceGlassHigh: Color(0xFF45404F), // #45404F
-        cardBorder: Color(0x40AAA2B3), // #AAA2B3 subtle border
-        textPrimary: Color(0xFFF3EEF8),
-        textSecondary: Color(0xFFAAA2B3), // #AAA2B3
-        accentPrimary: Color(0xFFAAA2B3), // #AAA2B3
-        accentPlum: Color(0xFF716879), // #716879
-        accentLilac: Color(0xFFAAA2B3), // #AAA2B3
+        background: Color(0xFF100E17),
+        surfaceGlass: Color(0xF01E1A27),
+        surfaceGlassHigh: Color(0xFF2C2538),
+        cardBorder: Color(0x38A78BFA),
+        textPrimary: Color(0xFFFDFCFE),
+        textSecondary: Color(0xFFA39AA8),
+        accentPrimary: Color(0xFF9D6EFA), // Vibrant Electric Iris
+        accentPlum: Color(0xFFC4B5FD),
+        accentLilac: Color(0xFFA78BFA),
         accentGreen: Color(0xFF10B981),
-        accentAmber: Color(0xFFF59E0B),
-        accentRed: Color(0xFFEF4444),
+        accentAmber: Color(0xFFFBBF24),
+        accentRed: Color(0xFFF43F5E),
         shadow: BoxShadow(
-          color: Color(0x66000000),
+          color: Color(0x73000000),
           blurRadius: 20,
           offset: Offset(0, 6),
         ),
@@ -120,20 +122,20 @@ class AppPalette {
     } else {
       return const AppPalette(
         isDark: false,
-        background: Color(0xFFE2DDE7), // #E2DDE7
-        surfaceGlass: Color(0xF4FFFFFF), // crisp frosted white
+        background: Color(0xFFF7F5FA),
+        surfaceGlass: Color(0xF8FFFFFF),
         surfaceGlassHigh: Color(0xFFFFFFFF),
-        cardBorder: Color(0xFFD3CBD8), // soft plum border
-        textPrimary: Color(0xFF17151C), // #17151C
-        textSecondary: Color(0xFF716879), // #716879
-        accentPrimary: Color(0xFF292531), // #292531
-        accentPlum: Color(0xFF45404F), // #45404F
-        accentLilac: Color(0xFF716879),
+        cardBorder: Color(0xFFE5DFEC),
+        textPrimary: Color(0xFF16131D),
+        textSecondary: Color(0xFF6E6678),
+        accentPrimary: Color(0xFF7C3AED), // Commanding Royal Violet
+        accentPlum: Color(0xFF5B21B6),
+        accentLilac: Color(0xFF6D28D9),
         accentGreen: Color(0xFF059669),
         accentAmber: Color(0xFFD97706),
-        accentRed: Color(0xFFDC2626),
+        accentRed: Color(0xFFE11D48),
         shadow: BoxShadow(
-          color: Color(0x1A292531),
+          color: Color(0x14292531),
           blurRadius: 16,
           offset: Offset(0, 4),
         ),
@@ -158,8 +160,8 @@ class AppPalette {
         shadow,
         if (glow && isDark)
           BoxShadow(
-            color: const Color(0xFFAAA2B3).withValues(alpha: 0.25),
-            blurRadius: 20,
+            color: accentPrimary.withValues(alpha: 0.22),
+            blurRadius: 18,
             spreadRadius: 1,
           ),
       ],

@@ -1,12 +1,12 @@
 import '../models/job_post.dart';
 
 class QualificationMatcher {
-  /// Resolves the candidate's active qualifications into all valid eligibility streams.
-  /// A candidate with 'B.SC' is a Graduate, has passed 12th PCM/PCB, and 10th.
+  /// Resolves the candidate's active qualifications (both highest and additional) into all valid eligibility streams.
+  /// A candidate with 'B.SC' is a Graduate, has passed 12th PCM, and 10th.
   /// Hence, they are eligible for:
   /// - All general Graduate posts (RRB NTPC Graduate, SSC CGL, UPSC, Bank PO)
   /// - Any specialized Science/B.Sc posts
-  /// - All 12th level posts (RRB NTPC Under-Graduate, SSC CHSL, Railway Group D)
+  /// - All 12th level posts (RRB NTPC Under-Graduate, SSC CHSL)
   /// - All 10th level posts
   static Set<String> getEligibleStreams(Iterable<String> candidateQuals) {
     final streams = <String>{};
@@ -21,18 +21,36 @@ class QualificationMatcher {
         streams.addAll(['GRADUATE', '12TH / 10+2', '10TH', 'BA', 'B.SC', 'B.COM', 'BBA']);
       }
       if (q == 'B.TECH / B.E' || q.contains('B.TECH') || q.contains('ENGINEERING')) {
-        streams.addAll(['B.TECH / B.E', 'GRADUATE', 'DIPLOMA', '12TH PCM', '12TH / 10+2', '10TH']);
+        streams.addAll(['B.TECH / B.E', 'GRADUATE', 'DIPLOMA', '12TH PCM', '12TH / 10+2', '10TH', 'ENGINEERING']);
       }
       if (q == 'B.COM') {
-        streams.addAll(['B.COM', 'GRADUATE', '12TH / 10+2', '10TH', 'COMMERCE']);
+        streams.addAll(['B.COM', 'GRADUATE', '12TH / 10+2', '10TH', 'COMMERCE', 'FINANCE']);
       }
       if (q == 'BA') {
         streams.addAll(['BA', 'GRADUATE', '12TH / 10+2', '10TH', 'ARTS']);
       }
-      if (q == 'POST GRADUATE' || q.contains('POST GRADUATE') || q.contains('MASTER')) {
-        streams.addAll(['POST GRADUATE', 'GRADUATE', '12TH / 10+2', '10TH']);
+      if (q == 'BCA') {
+        streams.addAll(['BCA', 'GRADUATE', '12TH / 10+2', '10TH', 'COMPUTER']);
       }
-      if (q == '12TH / 10+2' || q == '12TH PCM' || q.contains('12TH')) {
+      if (q == 'LLB') {
+        streams.addAll(['LLB', 'GRADUATE', '12TH / 10+2', '10TH', 'LAW']);
+      }
+      if (q == 'MBBS / BDS') {
+        streams.addAll(['MBBS / BDS', 'GRADUATE', '12TH PCB', '12TH / 10+2', '10TH', 'MEDICAL']);
+      }
+      if (q.contains('PHARM')) {
+        streams.addAll(['B.PHARM / D.PHARM', '12TH PCB', '12TH / 10+2', '10TH', 'PHARMACY']);
+      }
+      if (q.contains('NURSING')) {
+        streams.addAll(['NURSING (B.SC / GNM)', '12TH PCB', '12TH / 10+2', '10TH', 'NURSING']);
+      }
+      if (q == 'POST GRADUATE' || q.contains('POST GRADUATE') || q.contains('MASTER') || q == 'MCA') {
+        streams.addAll(['POST GRADUATE', 'GRADUATE', '12TH / 10+2', '10TH', 'MCA']);
+      }
+      if (q.contains('PH.D')) {
+        streams.addAll(['PH.D / RESEARCH', 'POST GRADUATE', 'GRADUATE', '12TH / 10+2', '10TH']);
+      }
+      if (q == '12TH / 10+2' || q == '12TH PCM' || q == '12TH PCB' || q.contains('12TH')) {
         streams.addAll(['12TH / 10+2', '10TH']);
       }
       if (q == '10TH') {
@@ -43,6 +61,33 @@ class QualificationMatcher {
       }
       if (q == 'ITI') {
         streams.addAll(['ITI', '10TH']);
+      }
+      if (q == 'B.ED' || q.contains('B.ED')) {
+        streams.addAll(['B.ED', 'TEACHING']);
+      }
+      if (q.contains('D.EL.ED') || q.contains('BTC')) {
+        streams.addAll(['D.EL.ED / BTC', 'TEACHING']);
+      }
+      if (q.contains('CTET')) {
+        streams.addAll(['CTET', 'CTET PAPER 1', 'CTET PAPER 2', 'TEACHING']);
+      }
+      if (q.contains('TET') || q.contains('STET')) {
+        streams.addAll(['STET / STATE TET', 'TEACHING']);
+      }
+      if (q == 'CCC' || q.contains('CCC')) {
+        streams.addAll(['CCC', 'COMPUTER']);
+      }
+      if (q.contains('TYPING')) {
+        streams.addAll(['TYPING', 'TYPING (HINDI)', 'TYPING (ENGLISH)', 'CLERK']);
+      }
+      if (q.contains('STENO')) {
+        streams.addAll(['STENO', 'SHORTHAND']);
+      }
+      if (q.contains('GATE')) {
+        streams.addAll(['GATE', 'PSU']);
+      }
+      if (q.contains('NET')) {
+        streams.addAll(['UGC NET / JRF', 'CSIR NET', 'PROFESSOR']);
       }
     }
     return streams;
@@ -84,6 +129,12 @@ class QualificationMatcher {
         return true;
       }
     }
+
+    if (eligibleStreams.contains('10TH') && combinedText.contains('10TH')) return true;
+    if (eligibleStreams.contains('12TH / 10+2') && combinedText.contains('12TH')) return true;
+    if (eligibleStreams.contains('B.ED') && combinedText.contains('B.ED')) return true;
+    if (eligibleStreams.contains('CTET') && combinedText.contains('CTET')) return true;
+    if (eligibleStreams.contains('ITI') && combinedText.contains('ITI')) return true;
 
     return false;
   }
