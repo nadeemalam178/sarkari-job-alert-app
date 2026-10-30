@@ -1,7 +1,8 @@
+import 'motion_spells.dart';
 import 'package:flutter/material.dart';
+
 import '../models/qualification.dart';
 import '../theme/app_theme.dart';
-import 'motion_spells.dart';
 
 class QualificationPickerSheet extends StatefulWidget {
   final List<Qualification> allQualifications;
@@ -34,7 +35,8 @@ class QualificationPickerSheet extends StatefulWidget {
   }
 
   @override
-  State<QualificationPickerSheet> createState() => _QualificationPickerSheetState();
+  State<QualificationPickerSheet> createState() =>
+      _QualificationPickerSheetState();
 }
 
 class _QualificationPickerSheetState extends State<QualificationPickerSheet> {
@@ -47,8 +49,12 @@ class _QualificationPickerSheetState extends State<QualificationPickerSheet> {
   void initState() {
     super.initState();
     // Resolve initial selection into highest degree vs additional
-    final selected = widget.initialSelected.map((e) => e.toUpperCase().trim()).toList();
-    final highestCodes = Qualification.highestDegrees.map((e) => e.code).toSet();
+    final selected = widget.initialSelected
+        .map((e) => e.toUpperCase().trim())
+        .toList();
+    final highestCodes = Qualification.highestDegrees
+        .map((e) => e.code)
+        .toSet();
 
     String? foundHighest;
     final additionals = <String>{};
@@ -61,7 +67,8 @@ class _QualificationPickerSheetState extends State<QualificationPickerSheet> {
       }
     }
 
-    _highestDegree = foundHighest ?? (selected.isNotEmpty ? selected.first : 'GRADUATE');
+    _highestDegree =
+        foundHighest ?? (selected.isNotEmpty ? selected.first : 'GRADUATE');
     _additionalSelected = additionals;
   }
 
@@ -78,12 +85,15 @@ class _QualificationPickerSheetState extends State<QualificationPickerSheet> {
 
     final filteredHighest = Qualification.highestDegrees.where((q) {
       if (search.isEmpty) return true;
-      return q.code.toLowerCase().contains(search) || q.name.toLowerCase().contains(search);
+      return q.code.toLowerCase().contains(search) ||
+          q.name.toLowerCase().contains(search);
     }).toList();
 
     final filteredAdditional = Qualification.additionalCertificates.where((q) {
       if (search.isEmpty) return true;
-      return q.code.toLowerCase().contains(search) || q.name.toLowerCase().contains(search) || q.category.toLowerCase().contains(search);
+      return q.code.toLowerCase().contains(search) ||
+          q.name.toLowerCase().contains(search) ||
+          q.category.toLowerCase().contains(search);
     }).toList();
 
     return DraggableScrollableSheet(
@@ -139,7 +149,10 @@ class _QualificationPickerSheetState extends State<QualificationPickerSheet> {
                         const SizedBox(height: 2),
                         Text(
                           'Highest degree + additional certificates',
-                          style: TextStyle(fontSize: 11.5, color: palette.textSecondary),
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            color: palette.textSecondary,
+                          ),
                         ),
                       ],
                     ),
@@ -147,10 +160,21 @@ class _QualificationPickerSheetState extends State<QualificationPickerSheet> {
                       onPressed: _saveAndClose,
                       style: FilledButton.styleFrom(
                         backgroundColor: palette.accentPrimary,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
-                      child: const Text('Save & Match', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5)),
+                      child: const Text(
+                        'Save & Match',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12.5,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -158,18 +182,31 @@ class _QualificationPickerSheetState extends State<QualificationPickerSheet> {
 
               // 3. Search Bar
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 4,
+                ),
                 child: TextField(
                   onChanged: (val) => setState(() => _searchQuery = val),
                   style: TextStyle(color: palette.textPrimary, fontSize: 13),
                   decoration: InputDecoration(
                     hintText: 'Search B.Sc, B.Ed, CTET, ITI, CCC, Typing...',
-                    hintStyle: TextStyle(fontSize: 12, color: palette.textSecondary),
-                    prefixIcon: Icon(Icons.search, size: 18, color: palette.textSecondary),
+                    hintStyle: TextStyle(
+                      fontSize: 12,
+                      color: palette.textSecondary,
+                    ),
+                    prefixIcon: Icon(
+                      Icons.search,
+                      size: 18,
+                      color: palette.textSecondary,
+                    ),
                     isDense: true,
                     filled: true,
                     fillColor: palette.surfaceGlassHigh,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide(color: palette.cardBorder),
@@ -216,8 +253,16 @@ class _QualificationPickerSheetState extends State<QualificationPickerSheet> {
               // 5. Scrollable List of Options
               Expanded(
                 child: _activeTab == 0
-                    ? _buildHighestDegreeList(filteredHighest, palette, scrollController)
-                    : _buildAdditionalList(filteredAdditional, palette, scrollController),
+                    ? _buildHighestDegreeList(
+                        filteredHighest,
+                        palette,
+                        scrollController,
+                      )
+                    : _buildAdditionalList(
+                        filteredAdditional,
+                        palette,
+                        scrollController,
+                      ),
               ),
             ],
           ),
@@ -268,7 +313,9 @@ class _QualificationPickerSheetState extends State<QualificationPickerSheet> {
                 subtitle,
                 style: TextStyle(
                   fontSize: 10,
-                  color: isActive ? Colors.white.withValues(alpha: 0.9) : palette.textSecondary.withValues(alpha: 0.7),
+                  color: isActive
+                      ? Colors.white.withValues(alpha: 0.9)
+                      : palette.textSecondary.withValues(alpha: 0.7),
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -281,7 +328,11 @@ class _QualificationPickerSheetState extends State<QualificationPickerSheet> {
   }
 
   // Single-choice highest regular degree list
-  Widget _buildHighestDegreeList(List<Qualification> list, AppPalette palette, ScrollController controller) {
+  Widget _buildHighestDegreeList(
+    List<Qualification> list,
+    AppPalette palette,
+    ScrollController controller,
+  ) {
     return ListView.builder(
       controller: controller,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
@@ -302,19 +353,27 @@ class _QualificationPickerSheetState extends State<QualificationPickerSheet> {
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
               decoration: BoxDecoration(
                 color: isSelected
-                    ? palette.accentPrimary.withValues(alpha: palette.isDark ? 0.20 : 0.12)
+                    ? palette.accentPrimary.withValues(
+                        alpha: palette.isDark ? 0.20 : 0.12,
+                      )
                     : palette.surfaceGlassHigh,
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                  color: isSelected ? palette.accentPrimary : palette.cardBorder,
+                  color: isSelected
+                      ? palette.accentPrimary
+                      : palette.cardBorder,
                   width: isSelected ? 1.5 : 0.8,
                 ),
               ),
               child: Row(
                 children: [
                   Icon(
-                    isSelected ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
-                    color: isSelected ? palette.accentPrimary : palette.textSecondary,
+                    isSelected
+                        ? Icons.radio_button_checked_rounded
+                        : Icons.radio_button_off_rounded,
+                    color: isSelected
+                        ? palette.accentPrimary
+                        : palette.textSecondary,
                     size: 20,
                   ),
                   const SizedBox(width: 12),
@@ -327,26 +386,38 @@ class _QualificationPickerSheetState extends State<QualificationPickerSheet> {
                           style: TextStyle(
                             fontSize: 13.5,
                             fontWeight: FontWeight.w700,
-                            color: isSelected ? palette.accentPrimary : palette.textPrimary,
+                            color: isSelected
+                                ? palette.accentPrimary
+                                : palette.textPrimary,
                           ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           q.name,
-                          style: TextStyle(fontSize: 11, color: palette.textSecondary),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: palette.textSecondary,
+                          ),
                         ),
                       ],
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: palette.background,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       q.category,
-                      style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w600, color: palette.textSecondary),
+                      style: TextStyle(
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w600,
+                        color: palette.textSecondary,
+                      ),
                     ),
                   ),
                 ],
@@ -359,7 +430,11 @@ class _QualificationPickerSheetState extends State<QualificationPickerSheet> {
   }
 
   // Multi-choice additional qualifications list
-  Widget _buildAdditionalList(List<Qualification> list, AppPalette palette, ScrollController controller) {
+  Widget _buildAdditionalList(
+    List<Qualification> list,
+    AppPalette palette,
+    ScrollController controller,
+  ) {
     return ListView.builder(
       controller: controller,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
@@ -386,19 +461,26 @@ class _QualificationPickerSheetState extends State<QualificationPickerSheet> {
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
               decoration: BoxDecoration(
                 color: isSelected
-                    ? const Color(0xFF10B981).withValues(alpha: palette.isDark ? 0.20 : 0.12)
+                    ? const Color(0xFF10B981)
+                          .withValues(alpha: palette.isDark ? 0.20 : 0.12)
                     : palette.surfaceGlassHigh,
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                  color: isSelected ? const Color(0xFF10B981) : palette.cardBorder,
+                  color: isSelected
+                      ? const Color(0xFF10B981)
+                      : palette.cardBorder,
                   width: isSelected ? 1.5 : 0.8,
                 ),
               ),
               child: Row(
                 children: [
                   Icon(
-                    isSelected ? Icons.check_box_rounded : Icons.check_box_outline_blank_rounded,
-                    color: isSelected ? const Color(0xFF10B981) : palette.textSecondary,
+                    isSelected
+                        ? Icons.check_box_rounded
+                        : Icons.check_box_outline_blank_rounded,
+                    color: isSelected
+                        ? const Color(0xFF10B981)
+                        : palette.textSecondary,
                     size: 20,
                   ),
                   const SizedBox(width: 12),
@@ -411,26 +493,38 @@ class _QualificationPickerSheetState extends State<QualificationPickerSheet> {
                           style: TextStyle(
                             fontSize: 13.5,
                             fontWeight: FontWeight.w700,
-                            color: isSelected ? const Color(0xFF10B981) : palette.textPrimary,
+                            color: isSelected
+                                ? const Color(0xFF10B981)
+                                : palette.textPrimary,
                           ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           q.name,
-                          style: TextStyle(fontSize: 11, color: palette.textSecondary),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: palette.textSecondary,
+                          ),
                         ),
                       ],
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: palette.background,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       q.category,
-                      style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w600, color: palette.textSecondary),
+                      style: TextStyle(
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w600,
+                        color: palette.textSecondary,
+                      ),
                     ),
                   ),
                 ],

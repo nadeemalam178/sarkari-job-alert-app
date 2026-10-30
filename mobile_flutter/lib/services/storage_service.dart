@@ -1,6 +1,11 @@
 import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:crypto/crypto.dart';
+
+import 'dart:math';
+
 import '../models/job_post.dart';
 
 class StorageService {
@@ -17,8 +22,35 @@ class StorageService {
   static const String _keyCandidateQualification = 'candidate_qualification';
   static const String _keyNotificationsEnabled = 'candidate_notif_enabled';
   static const String _keyIsLoggedIn = 'app_user_is_logged_in';
-  static const String _keyNotificationBannerDismissed = 'notif_banner_dismissed';
+  static const String _keyNotificationBannerDismissed =
+      'notif_banner_dismissed';
   static const String _keyRegisteredAccounts = 'registered_accounts_json';
+
+  // --- Password Hashing (SHA-256 with salt) ---
+  static String _hashPassword(String password, [String? salt]) {
+    salt ??= _generateSalt();
+    final bytes = utf8.encode(password + salt);
+    final digest = sha256.convert(bytes);
+    return '$salt:$digest';
+  }
+
+  static String _generateSalt() {
+    final random = Random.secure();
+    final values = List<int>.generate(16, (i) => random.nextInt(256));
+    return base64Url.encode(values);
+  }
+
+  static bool _verifyPassword(String password, String storedHash) {
+    try {
+      final parts = storedHash.split(':');
+      if (parts.length != 2) return false;
+      final salt = parts[0];
+      final computed = _hashPassword(password, salt);
+      return computed == storedHash;
+    } catch (_) {
+      return false;
+    }
+  }
 
   static Future<bool> isLoggedIn() async {
     final prefs = await SharedPreferences.getInstance();
@@ -51,6 +83,7 @@ class StorageService {
     await prefs.remove(_keyCandidateQualification);
     await prefs.remove(_keySavedJobIds);
     await prefs.remove(_keyRegisteredAccounts);
+    await prefs.remove(_keyCachedJobs);
     await prefs.setBool(_keyNotificationBannerDismissed, false);
     await prefs.setStringList(_keySelectedQuals, ['GRADUATE', '12TH / 10+2']);
   }
@@ -92,8 +125,10 @@ class StorageService {
       'phone': prefs.getString(_keyCandidatePhone) ?? '',
       'category': prefs.getString(_keyCandidateCategory) ?? 'General / OBC',
       'state': prefs.getString(_keyCandidateState) ?? 'All India',
-      'qualification': prefs.getString(_keyCandidateQualification) ?? 'GRADUATE',
-      'notifEnabled': (prefs.getBool(_keyNotificationsEnabled) ?? true).toString(),
+      'qualification':
+          prefs.getString(_keyCandidateQualification) ?? 'GRADUATE',
+      'notifEnabled': (prefs.getBool(_keyNotificationsEnabled) ?? true)
+          .toString(),
     };
   }
 
@@ -126,17 +161,22 @@ class StorageService {
   }) async {
     final prefs = await SharedPreferences.getInstance();
     final rawAccounts = prefs.getString(_keyRegisteredAccounts);
-    final Map<String, dynamic> accounts = rawAccounts != null ? jsonDecode(rawAccounts) : {};
+    final Map<String, dynamic> accounts = rawAccounts != null
+        ? jsonDecode(rawAccounts)
+        : {};
 
     final normalizedEmail = email.trim().toLowerCase();
     if (accounts.containsKey(normalizedEmail)) {
-      return {'success': false, 'error': 'An account with this email already exists. Please sign in.'};
+      return {
+        'success': false,
+        'error': 'An account with this email already exists. Please sign in.',
+      };
     }
 
     accounts[normalizedEmail] = {
       'name': name.trim(),
       'email': normalizedEmail,
-      'password': password,
+      'password': _hashPassword(password),
       'phone': phone.trim(),
       'qualification': qualification.trim(),
       'registered_at': DateTime.now().toIso8601String(),
@@ -169,7 +209,9 @@ class StorageService {
   }) async {
     final prefs = await SharedPreferences.getInstance();
     final rawAccounts = prefs.getString(_keyRegisteredAccounts);
-    final Map<String, dynamic> accounts = rawAccounts != null ? jsonDecode(rawAccounts) : {};
+    final Map<String, dynamic> accounts = rawAccounts != null
+        ? jsonDecode(rawAccounts)
+        : {};
 
     final normalizedEmail = email.trim().toLowerCase();
     if (!accounts.containsKey(normalizedEmail)) {
@@ -180,7 +222,7 @@ class StorageService {
     }
 
     final account = accounts[normalizedEmail] as Map<String, dynamic>;
-    if (account['password'] != password) {
+    if (!_verifyPassword(password, account['password'] as String)) {
       return {
         'success': false,
         'error': 'Incorrect password. Please verify and try again.',
@@ -216,12 +258,14 @@ class StorageService {
     await prefs.remove(_keyCandidateState);
     await prefs.remove(_keyCandidateQualification);
     await prefs.remove(_keySavedJobIds);
+    await prefs.remove(_keyCachedJobs);
     await prefs.setStringList(_keySelectedQuals, ['GRADUATE', '12TH / 10+2']);
   }
 
   static Future<List<String>> getSelectedQualifications() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getStringList(_keySelectedQuals) ?? ['GRADUATE', '12TH / 10+2'];
+    return prefs.getStringList(_keySelectedQuals) ??
+        ['GRADUATE', '12TH / 10+2'];
   }
 
   static Future<void> setSelectedQualifications(List<String> quals) async {
@@ -243,7 +287,10 @@ class StorageService {
     } else {
       current.add(id);
     }
-    await prefs.setStringList(_keySavedJobIds, current.map((e) => e.toString()).toList());
+    await prefs.setStringList(
+      _keySavedJobIds,
+      current.map((e) => e.toString()).toList(),
+    );
   }
 
   static Future<List<JobPost>> getCachedJobs() async {
